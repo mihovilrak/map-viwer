@@ -1,0 +1,7 @@
+{
+  "entry": "src",
+  "outDir": "docs",
+  "includePrivate": false,
+  "exclude": ["**/*.test.tsx"]
+}
+
