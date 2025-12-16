@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import axios from "axios";
-import maplibregl, {Map} from "maplibre-gl";
+import maplibregl, {Map, type StyleSpecification} from "maplibre-gl";
 
 type LayerMetadata = {
   id: string;
@@ -10,7 +10,9 @@ type LayerMetadata = {
 };
 
 const apiBase =
-  import.meta.env.VITE_API_BASE_URL ?? window.location.origin ?? "http://localhost:8000";
+  (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ??
+  window.location.origin ??
+  "http://localhost:8000";
 
 function App() {
   const mapRef = useRef<Map | null>(null);
@@ -19,17 +21,17 @@ function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const mapStyle = useMemo(
+  const mapStyle: StyleSpecification = useMemo(
     () => ({
-      version: 8,
+      version: 8 as const,
       sources: {
         "osm-tiles": {
-          type: "raster" as const,
+          type: "raster",
           tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
         },
       },
-      layers: [{id: "osm-base", type: "raster" as const, source: "osm-tiles"}],
+      layers: [{id: "osm-base", type: "raster", source: "osm-tiles"}],
     }),
     [],
   );
