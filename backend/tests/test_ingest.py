@@ -4,12 +4,12 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import main
-from app.api import ingest as ingest_api
-from app.core import config
-from app.db import database
-from app.db.database import InMemoryLayerRepository
-from app.db.models import LayerMetadata
+from backend.app import main
+from backend.app.api import ingest as ingest_api
+from backend.app.core import config
+from backend.app.db import database
+from backend.app.db.database import InMemoryLayerRepository
+from backend.app.db.models import LayerMetadata
 
 
 def _test_settings(tmp_path: Path) -> config.Settings:

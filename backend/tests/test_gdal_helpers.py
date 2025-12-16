@@ -4,7 +4,7 @@ from subprocess import CompletedProcess
 
 import pytest
 
-from app.utils import gdal_helpers
+from backend.app.utils import gdal_helpers
 
 
 def test_run_command_success(monkeypatch):

@@ -4,13 +4,14 @@ from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
-from app import main
-from app.api import ingest as ingest_api
-from app.core import config
-from app.db import database
-from app.db.database import InMemoryLayerRepository
-from app.db.models import LayerMetadata
+from backend.app import main
+from backend.app.api import ingest as ingest_api
+from backend.app.core import config
+from backend.app.db import database
+from backend.app.db.database import InMemoryLayerRepository
+from backend.app.db.models import LayerMetadata
 
 
 def _settings(tmp_path: Path) -> config.Settings:
@@ -24,13 +25,20 @@ def _settings(tmp_path: Path) -> config.Settings:
     return settings
 
 
-def test_full_vector_and_raster_flow(monkeypatch, tmp_path):
+def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """Upload vector and raster, ingest both, list layers."""
     repo = InMemoryLayerRepository()
-    monkeypatch.setattr(database, "get_layer_repository", lambda settings: repo)
-    monkeypatch.setattr(config, "get_settings", lambda: _settings(tmp_path))
 
-    def fake_vector(source_path: Path, layer_name: str, settings: Any) -> LayerMetadata:
+    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+        return repo
+
+    def _get_settings() -> config.Settings:
+        return _settings(tmp_path)
+
+    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr(config, "get_settings", _get_settings)
+
+    def fake_vector(source_path: Path, layer_name: str, _: Any) -> LayerMetadata:
         return LayerMetadata(
             id="v1",
             name=layer_name,
@@ -90,13 +98,20 @@ def test_full_vector_and_raster_flow(monkeypatch, tmp_path):
     assert bbox_resp.json()["bbox"] == [-1.0, -1.0, 1.0, 1.0]
 
 
-def test_ingest_invalid_upload(monkeypatch, tmp_path):
+def test_ingest_invalid_upload(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """Missing upload should return 404."""
     repo = InMemoryLayerRepository()
-    monkeypatch.setattr(database, "get_layer_repository", lambda settings: repo)
-    monkeypatch.setattr(config, "get_settings", lambda: _settings(tmp_path))
+
+    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+        return repo
+
+    def _get_settings() -> config.Settings:
+        return _settings(tmp_path)
+
+    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr(config, "get_settings", _get_settings)
+
     app = main.create_app()
     client = TestClient(app)
     resp = client.post("/api/layers/ingest/unknown?kind=vector&layer_name=demo")
     assert resp.status_code == 404
-

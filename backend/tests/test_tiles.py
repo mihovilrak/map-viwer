@@ -2,12 +2,13 @@
 
 from fastapi.testclient import TestClient
 
-from app import main
-from app.core import config
-from app.db import database
-from app.db.database import InMemoryLayerRepository
-from app.db.models import LayerMetadata
-from app.services.tiles_postgis import build_mvt_sql
+from backend.app import main
+from backend.app.api import tiles as tiles_api
+from backend.app.core import config
+from backend.app.db import database
+from backend.app.db.database import InMemoryLayerRepository
+from backend.app.db.models import LayerMetadata
+from backend.app.services.tiles_postgis import build_mvt_sql
 
 
 def test_build_mvt_sql_contains_layer():

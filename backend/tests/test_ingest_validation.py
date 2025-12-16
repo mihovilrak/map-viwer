@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException, UploadFile
 
-from app.api.ingest import _save_upload, _validate_layer_name
-from app.services import ingest_raster, ingest_vector
+from backend.app.api.ingest import _save_upload, _validate_layer_name
+from backend.app.services import ingest_raster, ingest_vector
 
 
 def test_validate_layer_name_rejects_invalid():

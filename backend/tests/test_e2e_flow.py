@@ -4,12 +4,12 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import main
-from app.api import tiles as tiles_api
-from app.core import config
-from app.db import database
-from app.db.database import InMemoryLayerRepository
-from app.db.models import LayerMetadata
+from backend.app import main
+from backend.app.api import tiles as tiles_api
+from backend.app.core import config
+from backend.app.db import database
+from backend.app.db.database import InMemoryLayerRepository
+from backend.app.db.models import LayerMetadata
 
 
 def test_full_flow(monkeypatch, tmp_path):
