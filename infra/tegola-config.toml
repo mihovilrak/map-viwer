@@ -1,0 +1,26 @@
+[[providers]]
+name = "postgis"
+type = "postgis"
+host = "postgres"
+port = 5432
+database = "gis"
+user = "gis"
+password = "gis"
+srid = 3857
+
+[[maps]]
+name = "mvt"
+center = [-0.1278, 51.5074, 5]
+
+  [[maps.layers]]
+  name = "dynamic_layer"
+  provider_layer = "postgis.dynamic_layer"
+  geometry_type = "Geometry"
+  id_fieldname = "gid"
+  sql = """
+    SELECT
+      gid,
+      geom
+    FROM {{.LayerName}}
+  """
+

@@ -1,0 +1,12 @@
+- Prefer FastAPI backend + Tegola for vector tiles; rio-tiler for raster XYZ.
+- Follow Google Python and TypeScript style; write Google-style docstrings.
+- Keep API handlers small: delegate work to service modules with tests.
+- Every new feature needs tests beside the code (pytest, vitest/react-testing-library).
+- Validate inputs: layer names, SRID, bbox, upload sizes; avoid SQL injection.
+- No secrets in repo; use `.env`/Docker compose for credentials.
+- Run formatters before commit: black+isort for Python; eslint+prettier for TS.
+- Use apply_patch for edits; avoid force resets; do not delete user changes.
+- Keep README/PROJECT_STATUS updated when changing endpoints or workflows.
+- Add infra changes to docker-compose/tegola config when touching tiles.
+- Prefer dependency injection for repositories/settings for testability.
+

@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: gis
+      POSTGRES_PASSWORD: gis
+      POSTGRES_DB: gis
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tegola:
+    image: gospatial/tegola:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./tegola-config.toml:/opt/tegola_config/config.toml:ro
+    environment:
+      TEGOLA_CONFIG: /opt/tegola_config/config.toml
+    ports:
+      - "8080:8080"
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://gis:gis@postgres:5432/gis
+      TEGOLA_BASE_URL: http://tegola:8080
+      ALLOW_ORIGINS: '*'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - ../.env:/app/.env:ro
+
+  frontend:
+    image: node:20
+    working_dir: /workspace/frontend
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    volumes:
+      - ../frontend:/workspace/frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend
+
