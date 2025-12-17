@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
 from backend.app import main
-from backend.app.api import tiles as tiles_api
 from backend.app.core import config
 from backend.app.db import database
 from backend.app.db.database import InMemoryLayerRepository
@@ -22,6 +21,10 @@ def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
         return repo
 
     monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
+    # Patch the imported get_layer_repository in each API module
+    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr("app.api.tiles.get_layer_repository", _get_layer_repository)
 
     def fake_vector_ingest(source_path: Path, layer_name: str, _settings: config.Settings) -> LayerMetadata:
         return LayerMetadata(
@@ -76,9 +79,9 @@ def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     def _get_settings() -> config.Settings:
         return config.Settings(storage_dir=tmp_path, raster_cache_dir=tmp_path)
 
-    monkeypatch.setattr("app.services.ingest_vector.ingest_vector_to_postgis", fake_vector_ingest)
-    monkeypatch.setattr("app.services.ingest_raster.ingest_raster", fake_raster_ingest)
-    monkeypatch.setattr(tiles_api, "COGReader", FakeCOGReader)
+    monkeypatch.setattr("app.api.ingest.ingest_vector_to_postgis", fake_vector_ingest)
+    monkeypatch.setattr("app.api.ingest.ingest_raster", fake_raster_ingest)
+    monkeypatch.setattr("app.api.tiles.COGReader", FakeCOGReader)
     monkeypatch.setattr(config, "get_settings", _get_settings)
 
     app = main.create_app()

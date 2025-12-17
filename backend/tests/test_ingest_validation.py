@@ -51,7 +51,15 @@ def test_ingest_raster_sets_bbox(monkeypatch: MonkeyPatch, tmp_path: Path) -> No
         ) -> None:
             return None
 
+    def fake_convert_to_cog(source_path: Path, output_dir: Path) -> Path:
+        """Mock convert_to_cog to avoid running gdal_translate on fake file."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+        cog_path = output_dir / f"{source_path.stem}_cog.tif"
+        cog_path.write_bytes(b"fake_cog")
+        return cog_path
+
     monkeypatch.setattr(ingest_raster, "COGReader", FakeCOGReader)
+    monkeypatch.setattr(ingest_raster, "convert_to_cog", fake_convert_to_cog)
     settings = config.Settings(raster_cache_dir=tmp_path, storage_dir=tmp_path)
     settings.ensure_directories()
     meta = ingest_raster.ingest_raster(cog, settings)

@@ -67,6 +67,8 @@ def test_raster_tile_redirect(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     
     monkeypatch.setattr(config, "get_settings", get_test_settings)
     monkeypatch.setattr(database, "get_layer_repository", get_test_repo)
+    # Patch the imported get_layer_repository in the API module
+    monkeypatch.setattr("app.api.tiles.get_layer_repository", get_test_repo)
     monkeypatch.setattr("app.api.tiles.COGReader", FakeCOGReader)
     app = main.create_app()
     client = TestClient(app)

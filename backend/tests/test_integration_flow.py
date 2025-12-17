@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
 from backend.app import main
-from backend.app.api import ingest as ingest_api
 from backend.app.core import config
 from backend.app.db import database
 from backend.app.db.database import InMemoryLayerRepository
@@ -37,6 +36,9 @@ def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -
 
     monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
     monkeypatch.setattr(config, "get_settings", _get_settings)
+    # Patch the imported get_layer_repository in each API module
+    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
 
     def fake_vector(source_path: Path, layer_name: str, _: Any) -> LayerMetadata:
         return LayerMetadata(
@@ -64,8 +66,8 @@ def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -
             local_path=str(settings.raster_cache_dir / "mock.tif"),
         )
 
-    monkeypatch.setattr(ingest_api, "ingest_vector_to_postgis", fake_vector)
-    monkeypatch.setattr(ingest_api, "ingest_raster", fake_raster)
+    monkeypatch.setattr("app.api.ingest.ingest_vector_to_postgis", fake_vector)
+    monkeypatch.setattr("app.api.ingest.ingest_raster", fake_raster)
 
     app = main.create_app()
     client = TestClient(app)
@@ -110,6 +112,9 @@ def test_ingest_invalid_upload(monkeypatch: MonkeyPatch, tmp_path: Path) -> None
 
     monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
     monkeypatch.setattr(config, "get_settings", _get_settings)
+    # Patch the imported get_layer_repository in each API module
+    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
 
     app = main.create_app()
     client = TestClient(app)
