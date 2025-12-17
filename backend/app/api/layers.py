@@ -1,5 +1,6 @@
 """Layer metadata endpoints."""
 
+from dataclasses import asdict
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,12 +18,12 @@ def _get_repo(settings: Settings = Depends(get_settings)) -> LayerRepositoryProt
     return get_layer_repository(settings)
 
 
-@router.get("", response_model=List[LayerMetadata])
+@router.get("")
 async def list_layers(
     repo: LayerRepositoryProtocol = Depends(_get_repo),
-) -> list[LayerMetadata]:
+) -> list[dict]:
     """Return all registered layers."""
-    return list(repo.all())
+    return [asdict(layer) for layer in repo.all()]
 
 
 @router.get("/{layer_id}/bbox")

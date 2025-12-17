@@ -1,6 +1,7 @@
 """Vector ingestion using ogr2ogr into PostGIS."""
 
 from pathlib import Path
+from typing import cast
 from uuid import uuid4
 
 from psycopg import sql
@@ -22,8 +23,8 @@ def _fetch_metadata(
             ).format(sql.Identifier(table_name))
         )
         row = cur.fetchone()
-        geom_type = row[0] if row else None
-        srid = row[1] if row else None
+        geom_type: str | None = cast(str, row[0]) if row and row[0] is not None else None
+        srid: int | None = cast(int, row[1]) if row and row[1] is not None else None
 
         cur.execute(
             sql.SQL(
@@ -34,9 +35,17 @@ def _fetch_metadata(
             ).format(sql.Identifier(table_name))
         )
         bbox_row = cur.fetchone()
-        bbox = None
-        if bbox_row and all(v is not None for v in bbox_row):
-            bbox = tuple(map(float, bbox_row))  # type: ignore[arg-type]
+        bbox: tuple[float, float, float, float] | None = None
+        if bbox_row and all(v is not None for v in bbox_row) and len(bbox_row) == 4:
+            bbox = cast(
+                tuple[float, float, float, float],
+                (
+                    float(bbox_row[0]),  # type: ignore[arg-type]
+                    float(bbox_row[1]),  # type: ignore[arg-type]
+                    float(bbox_row[2]),  # type: ignore[arg-type]
+                    float(bbox_row[3]),  # type: ignore[arg-type]
+                ),
+            )
         return geom_type, srid, bbox
 
 

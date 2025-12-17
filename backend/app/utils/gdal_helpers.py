@@ -2,7 +2,7 @@
 
 import subprocess
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
 
 
 class CommandError(RuntimeError):

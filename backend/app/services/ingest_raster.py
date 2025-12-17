@@ -29,10 +29,16 @@ def convert_to_cog(source_path: Path, output_dir: Path) -> Path:
 
 def _compute_bbox(cog_path: Path) -> tuple[float, float, float, float] | None:
     """Extract bounds from a COG using rio-tiler."""
-    with COGReader(cog_path) as cog:
+    with COGReader(input=str(cog_path), options={}) as cog:
         bounds = cog.bounds
     if bounds:
-        return (bounds.left, bounds.bottom, bounds.right, bounds.top)
+        # rio-tiler returns a BoundingBox object with left, bottom, right, top attributes
+        return (
+            bounds.left,  # type: ignore[attr-defined]
+            bounds.bottom,  # type: ignore[attr-defined]
+            bounds.right,  # type: ignore[attr-defined]
+            bounds.top,  # type: ignore[attr-defined]
+        )
     return None
 
 

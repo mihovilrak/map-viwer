@@ -2,6 +2,7 @@
 
 import shutil
 import tempfile
+from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -66,7 +67,7 @@ async def ingest_layer(
     layer_name: str | None = None,
     settings: Settings = Depends(get_settings),
     repo: LayerRepositoryProtocol = Depends(_get_repo),
-) -> LayerMetadata:
+) -> dict:
     """Ingest a previously uploaded file into the configured backend."""
     source_path = _upload_cache.get(upload_id)
     if not source_path:
@@ -82,5 +83,5 @@ async def ingest_layer(
         metadata = ingest_raster(source_path, settings)
 
     repo.add(metadata)
-    return metadata
+    return asdict(metadata)
 

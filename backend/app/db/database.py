@@ -1,13 +1,14 @@
 """Database helpers and repositories for layer metadata."""
 
 from collections.abc import Iterable
-from typing import Dict, Optional, Protocol
+from datetime import datetime, timezone
+from typing import Dict, Optional, Protocol, cast
 
 import psycopg
 from psycopg.rows import dict_row
 
 from app.core.config import Settings
-from app.db.models import LayerMetadata
+from app.db.models import LayerMetadata, Provider
 
 
 class LayerRepositoryProtocol(Protocol):
@@ -144,17 +145,39 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
             bbox_tuple = None
         else:
             bbox_tuple = tuple(bbox)  # type: ignore[arg-type]
+        srid_value = row.get("srid")
+        srid = (
+            int(cast(int, srid_value)) if srid_value is not None else None
+        )
+        table_name_value = row.get("table_name")
+        table_name = (
+            cast(str, table_name_value) if table_name_value is not None else None
+        )
+        geom_type_value = row.get("geom_type")
+        geom_type = (
+            cast(str, geom_type_value) if geom_type_value is not None else None
+        )
+        local_path_value = row.get("local_path")
+        local_path = (
+            cast(str, local_path_value) if local_path_value is not None else None
+        )
+        created_at_value = row.get("created_at")
+        created_at = (
+            cast(datetime, created_at_value)
+            if created_at_value is not None
+            else datetime.now(timezone.utc)
+        )
         return LayerMetadata(
             id=str(row["id"]),
             name=str(row["name"]),
             source=str(row["source"]),
-            provider=str(row["provider"]),
-            table_name=row.get("table_name"),
-            geom_type=row.get("geom_type"),
-            srid=row.get("srid"),
+            provider=cast(Provider, str(row["provider"])),
+            table_name=table_name,
+            geom_type=geom_type,
+            srid=srid,
             bbox=bbox_tuple,  # type: ignore[arg-type]
-            local_path=row.get("local_path"),
-            created_at=row.get("created_at"),
+            local_path=local_path,
+            created_at=created_at,
         )
 
 
