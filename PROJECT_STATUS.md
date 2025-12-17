@@ -18,4 +18,4 @@
 - Follow Google Style Guide for Python docstrings and TS linting.
 - Keep `Instructions.md` aligned with actual endpoints as they evolve.
 - Tegola config shipped as template; add per-layer map entries or generation script as layers are ingested.
-- Python tooling now standardized on uv (env/install), ruff (lint+format), pyright (types). TypeScript docs via tdoc.
+- Python tooling now standardized on uv (env/install), ruff (lint+format), pyright (types). TypeScript docs via tsdoc.
