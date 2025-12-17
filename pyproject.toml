@@ -1,21 +1,4 @@
-[tool.black]
-line-length = 88
-target-version = ["py311"]
-exclude = ["venv", ".venv", "node_modules", "dist"]
-
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-skip = ["venv", ".venv", "node_modules", "dist"]
-
-[tool.flake8]
-max-line-length = 88
-extend-ignore = ["E203", "W503"]
-exclude = [".venv", "venv", "node_modules", "dist"]
-
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra"
-testpaths = ["backend/tests"]
-
+addopts = "-ra --cov=app --cov-report=term-missing --cov-fail-under=70"
+testpaths = ["backend/tests", "backend"]
