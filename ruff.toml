@@ -1,0 +1,62 @@
+exclude = [
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+line-length = 80
+indent-width = 4
+
+target-version = "py312"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[lint]
+fixable = ["ALL"]
+unfixable = []
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "D",
+    "N",
+    "UP",
+    "C4",
+    "FA",
+    "PTH",
+]
+
+ignore = [
+    "E501",
+    "D1",
+]
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+known-first-party = ["backend"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
