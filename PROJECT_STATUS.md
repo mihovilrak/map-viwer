@@ -12,9 +12,10 @@
 - [x] Raster COG ingestion and XYZ endpoint.
 - [x] Frontend layer list + zoom-to-bbox and tile overlays.
 - [ ] CI pipeline (lint + test) and sample datasets.
+- [ ] Add automated Tegola map generation aligned with ingested layers.
 
 ## Notes
 - Follow Google Style Guide for Python docstrings and TS linting.
 - Keep `Instructions.md` aligned with actual endpoints as they evolve.
 - Tegola config shipped as template; add per-layer map entries or generation script as layers are ingested.
-
+- Python tooling now standardized on uv (env/install), ruff (lint+format), pyright (types). TypeScript docs via tdoc.
