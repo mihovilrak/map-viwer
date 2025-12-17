@@ -12,16 +12,29 @@ FastAPI ingests vector and raster data, stores vectors in PostGIS, converts rast
 
 ## Key components
 
-- `backend/`: FastAPI app with upload, ingest, metadata, raster XYZ; PostGIS repository for layers.
+- `backend/`: FastAPI app with upload, ingest, metadata, raster XYZ; PostGIS repository for layers. Python deps managed with `uv`; lint/format via `ruff`; type-check via `pyright`.
 - `infra/tegola-config.toml`: Tegola PostGIS provider + template map definition.
 - `infra/docker-compose.yml`: PostGIS + Tegola + backend + frontend dev wiring.
 - `frontend/`: Vite React TypeScript client (MapLibre) to view vector and raster tiles.
 - `PROJECT_STATUS.md`: progress log and checkpoints.
 
+## Local development (Python via uv)
+
+```bash
+uv venv
+uv pip install -r backend/requirements.txt
+uv run ruff check backend
+uv run ruff format backend
+uv run pytest
+uv run pyright  # type checking
+```
+
 ## Tests
 
-- Backend: `cd backend && pytest`
-- Frontend: `cd frontend && npm test`
+- Backend: `cd backend && pytest` (70% coverage gate via pytest-cov)
+- Frontend: `cd frontend && npm test -- --coverage` (Vitest 60% gate)
+- Frontend docs: `cd frontend && npm run docs:ts`
+- Frontend e2e: `cd frontend && npm run e2e` (requires running app; set `E2E_BASE_URL`)
 
 ## Style & quality
 
