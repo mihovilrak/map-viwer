@@ -1,8 +1,11 @@
 """End-to-end style test covering upload -> ingest -> tiles."""
 
 from pathlib import Path
+from types import TracebackType
+from typing import Optional, Type
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from backend.app import main
 from backend.app.api import tiles as tiles_api
@@ -12,11 +15,15 @@ from backend.app.db.database import InMemoryLayerRepository
 from backend.app.db.models import LayerMetadata
 
 
-def test_full_flow(monkeypatch, tmp_path):
+def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     repo = InMemoryLayerRepository()
-    monkeypatch.setattr(database, "get_layer_repository", lambda settings: repo)
 
-    def fake_vector_ingest(source_path: Path, layer_name: str, settings):
+    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+        return repo
+
+    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
+
+    def fake_vector_ingest(source_path: Path, layer_name: str, _settings: config.Settings) -> LayerMetadata:
         return LayerMetadata(
             id="vec1",
             name=layer_name,
@@ -29,7 +36,7 @@ def test_full_flow(monkeypatch, tmp_path):
             local_path=None,
         )
 
-    def fake_raster_ingest(source_path: Path, settings):
+    def fake_raster_ingest(source_path: Path, settings: config.Settings) -> LayerMetadata:
         cog_path = tmp_path / "raster_cog.tif"
         cog_path.write_bytes(b"cog")
         return LayerMetadata(
@@ -45,26 +52,34 @@ def test_full_flow(monkeypatch, tmp_path):
         )
 
     class FakeTile:
-        def render(self, img_format="PNG"):
+        def render(self, img_format: str = "PNG") -> bytes:
             return b"pngbytes"
 
     class FakeCOGReader:
-        def __init__(self, path):
+        def __init__(self, path: Path) -> None:
             self.path = path
 
-        def __enter__(self):
+        def __enter__(self) -> "FakeCOGReader":
             return self
 
-        def __exit__(self, exc_type, exc, tb):
-            return False
+        def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc: Optional[BaseException],
+            tb: Optional[TracebackType],
+        ) -> None:
+            return None
 
-        def tile(self, x, y, z):
+        def tile(self, x: int, y: int, z: int) -> "FakeTile":
             return FakeTile()
+
+    def _get_settings() -> config.Settings:
+        return config.Settings(storage_dir=tmp_path, raster_cache_dir=tmp_path)
 
     monkeypatch.setattr("app.services.ingest_vector.ingest_vector_to_postgis", fake_vector_ingest)
     monkeypatch.setattr("app.services.ingest_raster.ingest_raster", fake_raster_ingest)
     monkeypatch.setattr(tiles_api, "COGReader", FakeCOGReader)
-    monkeypatch.setattr(config, "get_settings", lambda: config.Settings(storage_dir=tmp_path, raster_cache_dir=tmp_path))
+    monkeypatch.setattr(config, "get_settings", _get_settings)
 
     app = main.create_app()
     client = TestClient(app)

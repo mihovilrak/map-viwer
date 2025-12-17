@@ -3,12 +3,13 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from backend.app import main
 from backend.app.api import ingest as ingest_api
 from backend.app.core import config
 from backend.app.db import database
-from backend.app.db.database import InMemoryLayerRepository
+from backend.app.db.database import InMemoryLayerRepository, LayerRepositoryProtocol
 from backend.app.db.models import LayerMetadata
 
 
@@ -22,13 +23,20 @@ def _test_settings(tmp_path: Path) -> config.Settings:
     return settings
 
 
-def test_upload_and_ingest_vector(monkeypatch, tmp_path):
+def test_upload_and_ingest_vector(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """Uploading then ingesting a vector should store metadata."""
     repo = InMemoryLayerRepository()
-    monkeypatch.setattr(config, "get_settings", lambda: _test_settings(tmp_path))
-    monkeypatch.setattr(database, "get_layer_repository", lambda settings: repo)
+    
+    def get_test_settings() -> config.Settings:
+        return _test_settings(tmp_path)
+    
+    def get_test_repo(settings: config.Settings) -> LayerRepositoryProtocol:
+        return repo
+    
+    monkeypatch.setattr(config, "get_settings", get_test_settings)
+    monkeypatch.setattr(database, "get_layer_repository", get_test_repo)
 
-    def fake_ingest(source_path, layer_name, settings):
+    def fake_ingest(source_path: Path, layer_name: str, settings: config.Settings) -> LayerMetadata:
         return LayerMetadata(
             id="123",
             name=layer_name,
