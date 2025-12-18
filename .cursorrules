@@ -1,12 +1,73 @@
-- Prefer FastAPI backend + Tegola for vector tiles; rio-tiler for raster XYZ.
-- Follow Google Python and TypeScript style; write Google-style docstrings.
-- Keep API handlers small: delegate work to service modules with tests.
-- Every new feature needs tests beside the code (pytest, vitest/react-testing-library).
-- Validate inputs: layer names, SRID, bbox, upload sizes; avoid SQL injection.
-- No secrets in repo; use `.env`/Docker compose for credentials.
-- Run formatters before commit: black+isort for Python; eslint+prettier for TS.
-- Use apply_patch for edits; avoid force resets; do not delete user changes.
-- Keep README/PROJECT_STATUS updated when changing endpoints or workflows.
-- Add infra changes to docker-compose/tegola config when touching tiles.
 - Prefer dependency injection for repositories/settings for testability.
+
+# Memory Bank System
+# See .cursor/cursor-memory-bank-rules.md for full documentation
+# At the start of EVERY task, read ALL memory bank files from .cursor/memory-bank/
+# When user says "/plan", "PLAN", "plan mode", or "enter planner mode":
+#   1. Read all memory bank files
+#   2. Analyze the requested changes and existing code
+#   3. Ask 4-6 clarifying questions based on findings
+#   4. Draft comprehensive plan and request approval
+#   5. Once approved, implement all steps, reporting progress after each phase
+# When user says "/act", "ACT", or "act mode":
+#   1. Check memory bank for context
+#   2. Update documentation as needed
+#   3. Update .cursorrules if patterns discovered
+#   4. Execute the task
+#   5. Document changes in memory bank
+# When user says "update memory bank":
+#   1. Review ALL memory bank files (even if unchanged)
+#   2. Document current state
+#   3. Clarify next steps
+#   4. Update .cursorrules with new patterns
+
+# Project-Specific Patterns
+
+## Critical Requirements (from Instructions.md - source of truth)
+- **CRITICAL**: ALL vector geometries MUST be transformed to EPSG:3857 at ingestion time using `-t_srs EPSG:3857` in ogr2ogr
+- **CRITICAL**: ALL rasters MUST be transformed to EPSG:3857 before COG creation
+- Vector tiles served via Tegola (separate service, FastAPI proxies)
+- Raster tiles generated on-demand from COGs using rio-tiler
+- All coordinate transformations happen at ingestion, not runtime
+
+## Architecture Patterns
+- FastAPI backend + Tegola for vector tiles; rio-tiler for raster XYZ
+- Repository pattern for layer metadata (PostgresLayerRepository, InMemoryLayerRepository)
+- Service layer pattern: API handlers delegate to service modules
+- Dependency injection via FastAPI Depends() for testability
+- Settings management via Pydantic BaseSettings with .env support
+
+## Code Quality Standards
+- Follow Google Python Style Guide for docstrings (Google-style)
+- Follow Google TypeScript style via ESLint + Prettier
+- Python: ruff for formatting and linting (NOT black+isort)
+- Python: pyright for type checking (NOT mypy - project uses pyright)
+- TypeScript: strict mode enabled, TSDoc for documentation
+- Keep API handlers small: delegate work to service modules with tests
+
+## Testing Requirements
+- Every new feature needs tests beside the code
+- Backend: pytest with 70% coverage requirement
+- Frontend: vitest with 60% coverage requirement
+- Integration tests must verify SRID is 3857 after ingestion
+- Use testcontainers or docker-compose for integration tests
+
+## Security & Validation
+- Validate inputs: layer names (alphanumeric + underscore only), SRID, bbox, upload sizes
+- Always use parameterized SQL queries to prevent SQL injection
+- No secrets in repo; use `.env`/Docker compose for credentials
+- File size limits enforced (default 512MB)
+
+## Development Workflow
+- Use uv for Python package management (NOT pip)
+- Run formatters before commit: ruff format/check for Python; eslint+prettier for TS
+- Keep README/PROJECT_STATUS.md updated when changing endpoints or workflows
+- Add infra changes to docker-compose/tegola config when touching tiles
+- Instructions.md is the authoritative source of truth for all specifications
+
+## Known Issues to Address
+- Vector ingestion missing `-t_srs EPSG:3857` transformation (CRITICAL - see activeContext.md)
+- Raster ingestion missing EPSG:3857 transformation (CRITICAL - see activeContext.md)
+- Tegola config needs per-layer map automation (see activeContext.md)
+- Need SRID verification tests to ensure 3857 after ingestion
 
