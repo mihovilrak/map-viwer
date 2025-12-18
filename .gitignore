@@ -50,4 +50,5 @@ dist/
 .env
 .venv/
 .mypy_cache/
+.cursor/
 Instructions.md
