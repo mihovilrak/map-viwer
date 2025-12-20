@@ -1,4 +1,17 @@
-"""Tests for GDAL helper utilities."""
+"""Unit tests for utilities in backend.app.utils.gdal_helpers.
+
+This module tests the low-level GDAL/ogr command execution helpers,
+specifically the `run_command` function and CommandError handling.
+Tests cover:
+    - Successful command execution (zero exit code)
+    - Failure handling and error message propagation (nonzero exit code)
+
+Monkeypatching is used to avoid actual subprocess execution, ensuring tests
+are isolated, fast, and reliable.
+
+See Also:
+    - backend/app/utils/gdal_helpers.py for implementation details.
+"""
 
 import subprocess
 from typing import Any
@@ -15,6 +28,7 @@ def test_run_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
         *args: Any,
         **kwargs: Any,
     ) -> subprocess.CompletedProcess[str]:
+        """Mock subprocess.run to return a successful CompletedProcess."""
         return subprocess.CompletedProcess(
             args=[],
             returncode=0,

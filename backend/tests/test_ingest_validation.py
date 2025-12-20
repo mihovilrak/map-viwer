@@ -1,4 +1,19 @@
-"""Additional ingestion and validation tests."""
+"""Validation tests for ingest endpoints and helpers.
+
+This module provides unit tests that verify validation logic for
+the backend ingestion APIs, including:
+  - Layer name validation rules,
+  - File size enforcement during upload,
+  - BBox setting/checking after raster ingestion.
+
+Critical requirements are enforced, including proper error handling for
+invalid input and file size, ensuring robustness and contract adherence
+to project Instructions.md.
+
+See Also:
+    - backend/app/api/ingest.py for API and validation implementation.
+    - backend/app/services/ingest_raster.py for raster ingest logic.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +34,7 @@ if TYPE_CHECKING:
 
 def test_validate_layer_name_rejects_invalid() -> None:
     with pytest.raises(fastapi.HTTPException):
-        ingest._validate_layer_name(  # type: ignore[reportPrivateUsage]
+        ingest._validate_layer_name(
             "bad-name!",
         )
 
@@ -27,7 +42,7 @@ def test_validate_layer_name_rejects_invalid() -> None:
 def test_save_upload_respects_size(tmp_path: pathlib.Path) -> None:
     file = fastapi.UploadFile(filename="big.bin", file=io.BytesIO(b"a" * 5))
     with pytest.raises(fastapi.HTTPException):
-        ingest._save_upload(  # type: ignore[reportPrivateUsage]
+        ingest._save_upload(
             file,
             tmp_path,
             max_size=4,
@@ -42,8 +57,10 @@ def test_ingest_raster_sets_bbox(
     cog.write_bytes(b"tif")
 
     class FakeCOGReader:
-        def __init__(self, path: pathlib.Path) -> None:
-            self.path = path
+        """Mock COGReader for testing."""
+
+        def __init__(self, input: str, options: dict[str, Any]):
+            self.path = input
 
         def __enter__(self) -> FakeCOGReader:
             class Bounds:
@@ -70,7 +87,7 @@ def test_ingest_raster_sets_bbox(
         cog_path.write_bytes(b"fake_cog")
         return cog_path
 
-    monkeypatch.setattr(ingest_raster, "COGReader", FakeCOGReader)
+    monkeypatch.setattr("rio_tiler.io.COGReader", FakeCOGReader)
     monkeypatch.setattr(ingest_raster, "convert_to_cog", fake_convert_to_cog)
     settings = config.Settings(raster_cache_dir=tmp_path, storage_dir=tmp_path)
     settings.ensure_directories()
@@ -82,19 +99,27 @@ def test_ingest_vector_calls_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
 ) -> None:
+    """Test ingest_vector_to_postgis calls metadata extraction."""
     src: pathlib.Path = tmp_path / "vec.geojson"
     src.write_text("{}")
     called: dict[str, Any] = {}
 
     def fake_run(cmd: Any, workdir: pathlib.Path | None = None) -> None:
+        """Mock run_command to capture command execution."""
         called["run_command"] = True
 
     def fake_fetch(
-        table_name: str, settings: config.Settings
-    ) -> tuple[str, int, tuple[float, float, float, float]]:
-        return "Polygon", 4326, (0.0, 0.0, 1.0, 1.0)
+        table_name: str,
+        settings: config.Settings,
+    ) -> ingest_vector.VectorMetadata:
+        """Mock _fetch_metadata to return test metadata."""
+        return ingest_vector.VectorMetadata(
+            geom_type="Polygon",
+            srid=4326,
+            bbox=(0.0, 0.0, 1.0, 1.0),
+        )
 
-    monkeypatch.setattr(ingest_vector, "run_command", fake_run)
+    monkeypatch.setattr("app.utils.gdal_helpers.run_command", fake_run)
     monkeypatch.setattr(ingest_vector, "_fetch_metadata", fake_fetch)
     settings = config.Settings(storage_dir=tmp_path, raster_cache_dir=tmp_path)
     settings.ensure_directories()
