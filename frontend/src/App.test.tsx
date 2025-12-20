@@ -9,7 +9,6 @@ const {
   addLayer,
   getSource,
   fitBounds,
-  addControl,
   MockMap,
   axiosGet,
 } = vi.hoisted(() => {

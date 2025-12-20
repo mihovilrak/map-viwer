@@ -19,6 +19,8 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@microsoft/tsdoc": "^0.16.0",
+    "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.9.4",
@@ -31,13 +33,11 @@
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-react": "^7.37.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "globals": "^16.5.0",
     "jsdom": "^24.1.0",
     "prettier": "^3.3.3",
-    "@microsoft/tsdoc": "^0.16.0",
-    "@playwright/test": "^1.49.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.1"
   }
 }
-
