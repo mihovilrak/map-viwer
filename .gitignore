@@ -46,6 +46,7 @@ dist/
 .vscode/
 .idea/
 .pytest_cache/
+.complexipy_cache/
 .DS_Store
 .env
 .venv/
