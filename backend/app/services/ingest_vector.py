@@ -1,66 +1,104 @@
 """Vector ingestion using ogr2ogr into PostGIS."""
 
-from pathlib import Path
-from typing import cast
-from uuid import uuid4
+from __future__ import annotations
 
-from psycopg import sql
+import uuid
+from typing import TYPE_CHECKING, NamedTuple, cast
 
-from app.core.config import Settings
-from app.db.database import get_connection
-from app.db.models import LayerMetadata
-from app.utils.gdal_helpers import run_command
+import psycopg2.extensions
+from app.db import database
+from app.db import models as db_models
+from app.utils import gdal_helpers
+
+if TYPE_CHECKING:
+    import pathlib
+
+    from app.core import config
+
+
+BBox = tuple[float, float, float, float]
+
+
+class VectorMetadata(NamedTuple):
+    geom_type: str | None
+    srid: int | None
+    bbox: BBox | None
 
 
 def _fetch_metadata(
-    table_name: str, settings: Settings
-) -> tuple[str | None, int | None, tuple[float, float, float, float] | None]:
-    """Compute geom type, SRID, and bbox from PostGIS."""
-    with get_connection(settings) as conn, conn.cursor() as cur:
+    table_name: str, settings: config.Settings
+) -> VectorMetadata:
+    """Compute geometry type, SRID, and bounding box from PostGIS.
+
+    Args:
+        table_name: Name of the PostGIS table to query.
+        settings: Application settings for database connection.
+
+    Returns:
+        Tuple of (geometry_type, srid, bbox) where:
+        - geometry_type: String like 'POINT', 'LINESTRING', 'POLYGON', or None
+        - srid: Integer SRID code (should be 3857 after ingestion), or None
+        - bbox: Tuple of (minx, miny, maxx, maxy) in Web Mercator, or None
+    """
+    with database.get_connection(settings) as conn, conn.cursor() as cur:
+        quoted_table = psycopg2.extensions.quote_ident(  # type: ignore[arg-type]
+            table_name,
+            conn,
+        )
         cur.execute(
-            sql.SQL(
-                "SELECT GeometryType(geom), ST_SRID(geom) FROM {} LIMIT 1;"
-            ).format(sql.Identifier(table_name))
+            """SELECT GeometryType(geom),
+                    ST_SRID(geom)
+                FROM %(table_name)s
+                LIMIT 1;""",
+            {"table_name": quoted_table},
         )
         row = cur.fetchone()
-        geom_type: str | None = cast(str, row[0]) if row and row[0] is not None else None
-        srid: int | None = cast(int, row[1]) if row and row[1] is not None else None
+        geom_type: str | None = (
+            cast(str, row[0]) if row and row[0] is not None else None
+        )
+        srid: int | None = (
+            cast(int, row[1]) if row and row[1] is not None else None
+        )
 
+        quoted_table = psycopg2.extensions.quote_ident(table_name, conn)  # type: ignore[arg-type]
         cur.execute(
-            sql.SQL(
-                """
-                SELECT ST_XMin(ext), ST_YMin(ext), ST_XMax(ext), ST_YMax(ext)
-                FROM (SELECT ST_Extent(geom) AS ext FROM {}) AS b;
-                """
-            ).format(sql.Identifier(table_name))
+            """
+            SELECT ST_XMin(ext), ST_YMin(ext), ST_XMax(ext), ST_YMax(ext)
+            FROM (SELECT ST_Extent(geom) AS ext FROM %(table_name)s) AS b;
+            """,
+            {"table_name": quoted_table},
         )
         bbox_row = cur.fetchone()
-        bbox: tuple[float, float, float, float] | None = None
-        if bbox_row and all(v is not None for v in bbox_row) and len(bbox_row) == 4:
-            bbox = cast(
-                tuple[float, float, float, float],
-                (
-                    float(bbox_row[0]),  # type: ignore[arg-type]
-                    float(bbox_row[1]),  # type: ignore[arg-type]
-                    float(bbox_row[2]),  # type: ignore[arg-type]
-                    float(bbox_row[3]),  # type: ignore[arg-type]
-                ),
-            )
-        return geom_type, srid, bbox
+        bbox: BBox | None = None
+        if (
+            bbox_row
+            and all(v is not None for v in bbox_row)
+            and len(bbox_row) == 4
+        ):
+            bbox = cast(BBox, tuple(map(float, bbox_row)))
+        return VectorMetadata(geom_type, srid, bbox)
 
 
 def ingest_vector_to_postgis(
-    source_path: Path, layer_name: str, settings: Settings
-) -> LayerMetadata:
+    source_path: pathlib.Path,
+    table_name: str,
+    settings: config.Settings,
+) -> db_models.LayerMetadata:
     """Import a vector dataset into PostGIS using ogr2ogr.
+
+    Transforms all geometries to EPSG:3857 (Web Mercator) at ingestion time
+    to ensure consistent coordinate system for web mapping.
 
     Args:
         source_path: Path to the uploaded vector file.
-        layer_name: Destination layer/table name.
+        table_name: Destination layer/table name.
         settings: Application settings.
 
     Returns:
         LayerMetadata describing the ingested layer.
+
+    Raises:
+        CommandError: If ogr2ogr command fails.
     """
     command = (
         "ogr2ogr",
@@ -68,24 +106,25 @@ def ingest_vector_to_postgis(
         "PostgreSQL",
         settings.database_url,
         str(source_path),
+        "-t_srs",
+        "EPSG:3857",
         "-nln",
-        layer_name,
+        table_name,
         "-lco",
         "GEOMETRY_NAME=geom",
         "-overwrite",
     )
-    run_command(command)
-    geom_type, srid, bbox = _fetch_metadata(layer_name, settings)
+    gdal_helpers.run_command(command)
+    vector_metadata = _fetch_metadata(table_name, settings)
 
-    return LayerMetadata(
-        id=str(uuid4()),
-        name=layer_name,
+    return db_models.LayerMetadata(
+        id=str(uuid.uuid4()),
+        name=table_name,
         source=str(source_path),
         provider="postgis",
-        table_name=layer_name,
-        geom_type=geom_type,
-        srid=srid,
-        bbox=bbox,
+        table_name=table_name,
+        geom_type=vector_metadata.geom_type,
+        srid=vector_metadata.srid,
+        bbox=vector_metadata.bbox,
         local_path=None,
     )
-

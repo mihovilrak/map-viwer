@@ -1,15 +1,16 @@
 """Database-adjacent data structures."""
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Literal, Optional, Tuple
+from __future__ import annotations
 
+import dataclasses
+import datetime
+from typing import Literal
 
-BBox = Tuple[float, float, float, float]
+BBox = tuple[float, float, float, float]
 Provider = Literal["postgis", "geopackage", "cog", "mbtiles"]
 
 
-@dataclass
+@dataclasses.dataclass
 class LayerMetadata:
     """Represents a vector or raster layer the app knows about."""
 
@@ -17,9 +18,9 @@ class LayerMetadata:
     name: str
     source: str
     provider: Provider
-    table_name: Optional[str]
-    geom_type: Optional[str]
-    srid: Optional[int]
-    bbox: Optional[BBox]
-    local_path: Optional[str]
-    created_at: datetime = datetime.now(tz=timezone.utc)
+    table_name: str | None
+    geom_type: str | None
+    srid: int | None
+    bbox: BBox | None
+    local_path: str | None
+    created_at: datetime.datetime = datetime.datetime.now(tz=datetime.UTC)

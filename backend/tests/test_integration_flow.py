@@ -1,19 +1,23 @@
 """Integration-style tests covering happy-path ingest and error handling."""
 
-from pathlib import Path
-from typing import Any
+from __future__ import annotations
 
-from fastapi.testclient import TestClient
-from pytest import MonkeyPatch
+from typing import TYPE_CHECKING, Any
+
+from fastapi import testclient
 
 from backend.app import main
 from backend.app.core import config
 from backend.app.db import database
-from backend.app.db.database import InMemoryLayerRepository
-from backend.app.db.models import LayerMetadata
+from backend.app.db import models as db_models
+
+if TYPE_CHECKING:
+    import pathlib
+
+    import pytest
 
 
-def _settings(tmp_path: Path) -> config.Settings:
+def _settings(tmp_path: pathlib.Path) -> config.Settings:
     """Return settings pointing to temp dirs."""
     settings = config.Settings(
         storage_dir=tmp_path / "uploads",
@@ -24,24 +28,46 @@ def _settings(tmp_path: Path) -> config.Settings:
     return settings
 
 
-def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+def test_full_vector_and_raster_flow(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
     """Upload vector and raster, ingest both, list layers."""
-    repo = InMemoryLayerRepository()
+    repo = database.InMemoryLayerRepository()
 
-    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+    def _get_layer_repository(
+        _settings: config.Settings,
+    ) -> database.InMemoryLayerRepository:
         return repo
 
     def _get_settings() -> config.Settings:
         return _settings(tmp_path)
 
-    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr(config, "get_settings", _get_settings)
-    # Patch the imported get_layer_repository in each API module
-    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr(
+        database,
+        "get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        config,
+        "get_settings",
+        _get_settings,
+    )
+    monkeypatch.setattr(
+        "app.api.ingest.get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        "app.api.layers.get_layer_repository",
+        _get_layer_repository,
+    )
 
-    def fake_vector(source_path: Path, layer_name: str, _: Any) -> LayerMetadata:
-        return LayerMetadata(
+    def fake_vector(
+        source_path: pathlib.Path,
+        layer_name: str,
+        _: Any,
+    ) -> db_models.LayerMetadata:
+        return db_models.LayerMetadata(
             id="v1",
             name=layer_name,
             source=str(source_path),
@@ -53,8 +79,11 @@ def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -
             local_path=None,
         )
 
-    def fake_raster(source_path: Path, settings: Any) -> LayerMetadata:
-        return LayerMetadata(
+    def fake_raster(
+        source_path: pathlib.Path,
+        settings: Any,
+    ) -> db_models.LayerMetadata:
+        return db_models.LayerMetadata(
             id="r1",
             name=source_path.stem,
             source=str(source_path),
@@ -70,16 +99,23 @@ def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr("app.api.ingest.ingest_raster", fake_raster)
 
     app = main.create_app()
-    client = TestClient(app)
+    client = testclient.TestClient(app)
 
     upload_resp = client.post(
         "/api/layers/upload",
-        files={"file": ("vector.geojson", b"{\"type\":\"FeatureCollection\",\"features\":[]}")},
+        files={
+            "file": (
+                "vector.geojson",
+                b'{"type":"FeatureCollection","features":[]}',
+            )
+        },
     )
     assert upload_resp.status_code == 200
     upload_id = upload_resp.json()["upload_id"]
 
-    ingest_resp = client.post(f"/api/layers/ingest/{upload_id}?kind=vector&layer_name=demo")
+    ingest_resp = client.post(
+        f"/api/layers/ingest/{upload_id}?kind=vector&layer_name=demo",
+    )
     assert ingest_resp.status_code == 200
 
     raster_upload = client.post(
@@ -100,23 +136,43 @@ def test_full_vector_and_raster_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -
     assert bbox_resp.json()["bbox"] == [-1.0, -1.0, 1.0, 1.0]
 
 
-def test_ingest_invalid_upload(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+def test_ingest_invalid_upload(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
     """Missing upload should return 404."""
-    repo = InMemoryLayerRepository()
+    repo = database.InMemoryLayerRepository()
 
-    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+    def _get_layer_repository(
+        _settings: config.Settings,
+    ) -> database.InMemoryLayerRepository:
         return repo
 
     def _get_settings() -> config.Settings:
         return _settings(tmp_path)
 
-    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr(config, "get_settings", _get_settings)
-    # Patch the imported get_layer_repository in each API module
-    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr(
+        database,
+        "get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        config,
+        "get_settings",
+        _get_settings,
+    )
+    monkeypatch.setattr(
+        "app.api.ingest.get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        "app.api.layers.get_layer_repository",
+        _get_layer_repository,
+    )
 
     app = main.create_app()
-    client = TestClient(app)
-    resp = client.post("/api/layers/ingest/unknown?kind=vector&layer_name=demo")
+    client = testclient.TestClient(app)
+    resp = client.post(
+        "/api/layers/ingest/unknown?kind=vector&layer_name=demo",
+    )
     assert resp.status_code == 404

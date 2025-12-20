@@ -1,33 +1,59 @@
 """End-to-end style test covering upload -> ingest -> tiles."""
 
-from pathlib import Path
-from types import TracebackType
-from typing import Optional, Type
+from __future__ import annotations
 
-from fastapi.testclient import TestClient
-from pytest import MonkeyPatch
+from typing import TYPE_CHECKING
+
+from fastapi import testclient
 
 from backend.app import main
 from backend.app.core import config
 from backend.app.db import database
-from backend.app.db.database import InMemoryLayerRepository
-from backend.app.db.models import LayerMetadata
+from backend.app.db import models as db_models
+
+if TYPE_CHECKING:
+    import pathlib
+    import types
+
+    import pytest
 
 
-def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
-    repo = InMemoryLayerRepository()
+def test_full_flow(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test the full flow of uploading, ingesting, and serving tiles."""
+    repo = database.InMemoryLayerRepository()
 
-    def _get_layer_repository(_settings: config.Settings) -> InMemoryLayerRepository:
+    def _get_layer_repository(
+        _settings: config.Settings,
+    ) -> database.InMemoryLayerRepository:
         return repo
 
-    monkeypatch.setattr(database, "get_layer_repository", _get_layer_repository)
-    # Patch the imported get_layer_repository in each API module
-    monkeypatch.setattr("app.api.ingest.get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr("app.api.layers.get_layer_repository", _get_layer_repository)
-    monkeypatch.setattr("app.api.tiles.get_layer_repository", _get_layer_repository)
+    monkeypatch.setattr(
+        database,
+        "get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        "app.api.ingest.get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        "app.api.layers.get_layer_repository",
+        _get_layer_repository,
+    )
+    monkeypatch.setattr(
+        "app.api.tiles.get_layer_repository",
+        _get_layer_repository,
+    )
 
-    def fake_vector_ingest(source_path: Path, layer_name: str, _settings: config.Settings) -> LayerMetadata:
-        return LayerMetadata(
+    def fake_vector_ingest(
+        source_path: pathlib.Path,
+        layer_name: str,
+        _settings: config.Settings,
+    ) -> db_models.LayerMetadata:
+        return db_models.LayerMetadata(
             id="vec1",
             name=layer_name,
             source=str(source_path),
@@ -39,10 +65,13 @@ def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
             local_path=None,
         )
 
-    def fake_raster_ingest(source_path: Path, settings: config.Settings) -> LayerMetadata:
+    def fake_raster_ingest(
+        source_path: pathlib.Path,
+        settings: config.Settings,
+    ) -> db_models.LayerMetadata:
         cog_path = tmp_path / "raster_cog.tif"
         cog_path.write_bytes(b"cog")
-        return LayerMetadata(
+        return db_models.LayerMetadata(
             id="rast1",
             name="rast",
             source=str(source_path),
@@ -59,46 +88,73 @@ def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
             return b"pngbytes"
 
     class FakeCOGReader:
-        def __init__(self, path: Path) -> None:
+        def __init__(self, path: pathlib.Path) -> None:
             self.path = path
 
-        def __enter__(self) -> "FakeCOGReader":
+        def __enter__(self) -> FakeCOGReader:
             return self
 
         def __exit__(
             self,
-            exc_type: Optional[Type[BaseException]],
-            exc: Optional[BaseException],
-            tb: Optional[TracebackType],
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: types.TracebackType | None,
         ) -> None:
             return None
 
-        def tile(self, x: int, y: int, z: int) -> "FakeTile":
+        def tile(self, x: int, y: int, z: int) -> FakeTile:
             return FakeTile()
 
     def _get_settings() -> config.Settings:
-        return config.Settings(storage_dir=tmp_path, raster_cache_dir=tmp_path)
+        return config.Settings(
+            storage_dir=tmp_path,
+            raster_cache_dir=tmp_path,
+            allow_origins=["*"],
+        )
 
-    monkeypatch.setattr("app.api.ingest.ingest_vector_to_postgis", fake_vector_ingest)
-    monkeypatch.setattr("app.api.ingest.ingest_raster", fake_raster_ingest)
-    monkeypatch.setattr("app.api.tiles.COGReader", FakeCOGReader)
-    monkeypatch.setattr(config, "get_settings", _get_settings)
+    monkeypatch.setattr(
+        "app.api.ingest.ingest_vector_to_postgis",
+        fake_vector_ingest,
+    )
+    monkeypatch.setattr(
+        "app.api.ingest.ingest_raster",
+        fake_raster_ingest,
+    )
+    monkeypatch.setattr(
+        "app.api.tiles.COGReader",
+        FakeCOGReader,
+    )
+    monkeypatch.setattr(
+        config,
+        "get_settings",
+        _get_settings,
+    )
 
     app = main.create_app()
-    client = TestClient(app)
+    client = testclient.TestClient(app)
 
-    up_vec = client.post("/api/layers/upload", files={"file": ("vec.geojson", b"{}")})
+    up_vec = client.post(
+        "/api/layers/upload",
+        files={"file": ("vec.geojson", b"{}")},
+    )
     assert up_vec.status_code == 200
     vec_upload_id = up_vec.json()["upload_id"]
 
-    ingest_vec = client.post(f"/api/layers/ingest/{vec_upload_id}?kind=vector&layer_name=demo")
+    ingest_vec = client.post(
+        f"/api/layers/ingest/{vec_upload_id}?kind=vector&layer_name=demo",
+    )
     assert ingest_vec.status_code == 200
 
-    up_rast = client.post("/api/layers/upload", files={"file": ("rast.tif", b"tif")})
+    up_rast = client.post(
+        "/api/layers/upload",
+        files={"file": ("rast.tif", b"tif")},
+    )
     assert up_rast.status_code == 200
     rast_upload_id = up_rast.json()["upload_id"]
 
-    ingest_rast = client.post(f"/api/layers/ingest/{rast_upload_id}?kind=raster")
+    ingest_rast = client.post(
+        f"/api/layers/ingest/{rast_upload_id}?kind=raster",
+    )
     assert ingest_rast.status_code == 200
 
     layers = client.get("/api/layers")
@@ -112,6 +168,8 @@ def test_full_flow(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     assert raster_tile.status_code == 200
     assert raster_tile.content == b"pngbytes"
 
-    vector_tile = client.get("/tiles/vector/demo/0/0/0.pbf", allow_redirects=False)
+    vector_tile = client.get(
+        "/tiles/vector/demo/0/0/0.pbf",
+        allow_redirects=False,
+    )
     assert vector_tile.status_code in (302, 307)
-

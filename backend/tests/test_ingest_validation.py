@@ -1,42 +1,51 @@
 """Additional ingestion and validation tests."""
 
+from __future__ import annotations
+
 import io
-from pathlib import Path
-from types import TracebackType
-from typing import Any, Optional, Type
+from typing import TYPE_CHECKING, Any
 
+import fastapi
 import pytest
-from fastapi import HTTPException, UploadFile
-from pytest import MonkeyPatch
 
-from backend.app.api.ingest import (
-    _save_upload,  # type: ignore[reportPrivateUsage]
-    _validate_layer_name,  # type: ignore[reportPrivateUsage]
-)
+from backend.app.api import ingest
 from backend.app.core import config
 from backend.app.services import ingest_raster, ingest_vector
 
+if TYPE_CHECKING:
+    import pathlib
+    import types
+
 
 def test_validate_layer_name_rejects_invalid() -> None:
-    with pytest.raises(HTTPException):
-        _validate_layer_name("bad-name!")
+    with pytest.raises(fastapi.HTTPException):
+        ingest._validate_layer_name(  # type: ignore[reportPrivateUsage]
+            "bad-name!",
+        )
 
 
-def test_save_upload_respects_size(tmp_path: Path) -> None:
-    file = UploadFile(filename="big.bin", file=io.BytesIO(b"a" * 5))
-    with pytest.raises(HTTPException):
-        _save_upload(file, tmp_path, max_size=4)
+def test_save_upload_respects_size(tmp_path: pathlib.Path) -> None:
+    file = fastapi.UploadFile(filename="big.bin", file=io.BytesIO(b"a" * 5))
+    with pytest.raises(fastapi.HTTPException):
+        ingest._save_upload(  # type: ignore[reportPrivateUsage]
+            file,
+            tmp_path,
+            max_size=4,
+        )
 
 
-def test_ingest_raster_sets_bbox(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
-    cog: Path = tmp_path / "in.tif"
+def test_ingest_raster_sets_bbox(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    cog: pathlib.Path = tmp_path / "in.tif"
     cog.write_bytes(b"tif")
 
     class FakeCOGReader:
-        def __init__(self, path: Path) -> None:
+        def __init__(self, path: pathlib.Path) -> None:
             self.path = path
 
-        def __enter__(self) -> "FakeCOGReader":
+        def __enter__(self) -> FakeCOGReader:
             class Bounds:
                 left, bottom, right, top = (1.0, 2.0, 3.0, 4.0)
 
@@ -45,13 +54,16 @@ def test_ingest_raster_sets_bbox(monkeypatch: MonkeyPatch, tmp_path: Path) -> No
 
         def __exit__(
             self,
-            exc_type: Optional[Type[BaseException]],
-            exc: Optional[BaseException],
-            tb: Optional[TracebackType],
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: types.TracebackType | None,
         ) -> None:
             return None
 
-    def fake_convert_to_cog(source_path: Path, output_dir: Path) -> Path:
+    def fake_convert_to_cog(
+        source_path: pathlib.Path,
+        output_dir: pathlib.Path,
+    ) -> pathlib.Path:
         """Mock convert_to_cog to avoid running gdal_translate on fake file."""
         output_dir.mkdir(parents=True, exist_ok=True)
         cog_path = output_dir / f"{source_path.stem}_cog.tif"
@@ -66,12 +78,15 @@ def test_ingest_raster_sets_bbox(monkeypatch: MonkeyPatch, tmp_path: Path) -> No
     assert meta.bbox == (1.0, 2.0, 3.0, 4.0)
 
 
-def test_ingest_vector_calls_metadata(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
-    src: Path = tmp_path / "vec.geojson"
+def test_ingest_vector_calls_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    src: pathlib.Path = tmp_path / "vec.geojson"
     src.write_text("{}")
     called: dict[str, Any] = {}
 
-    def fake_run(cmd: Any, workdir: Path | None = None) -> None:
+    def fake_run(cmd: Any, workdir: pathlib.Path | None = None) -> None:
         called["run_command"] = True
 
     def fake_fetch(
@@ -89,4 +104,3 @@ def test_ingest_vector_calls_metadata(monkeypatch: MonkeyPatch, tmp_path: Path) 
     assert meta.geom_type == "Polygon"
     assert meta.srid == 4326
     assert meta.bbox == (0.0, 0.0, 1.0, 1.0)
-

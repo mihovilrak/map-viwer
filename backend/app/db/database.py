@@ -1,45 +1,96 @@
 """Database helpers and repositories for layer metadata."""
 
-from collections.abc import Iterable
-from datetime import datetime, timezone
-from typing import Dict, Optional, Protocol, cast
+from __future__ import annotations
 
-import psycopg
-from psycopg.rows import dict_row
+import datetime
+from typing import TYPE_CHECKING, Protocol, cast
 
-from app.core.config import Settings
-from app.db.models import LayerMetadata, Provider
+import psycopg2
+import psycopg2.extensions
+
+from app.db import models as db_models
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from app.core import config
+
+
+def _cast[T](value: object, dtype: type[T]) -> T | None:  # type: ignore[misc]
+    """Cast a value to a specific type, returning None if value is None."""
+    if value is None:
+        return None
+
+    return cast(T, value)
 
 
 class LayerRepositoryProtocol(Protocol):
-    """Interface for storing and retrieving layer metadata."""
+    """Protocol interface for storing and retrieving layer metadata.
 
-    def add(self, layer: LayerMetadata) -> LayerMetadata: ...
+    Implementations provide persistence for LayerMetadata objects,
+    supporting both in-memory (testing) and PostgreSQL (production) backends.
+    """
 
-    def get(self, layer_id: str) -> Optional[LayerMetadata]: ...
+    def add(
+        self,
+        layer: db_models.LayerMetadata,
+    ) -> db_models.LayerMetadata: ...
 
-    def all(self) -> Iterable[LayerMetadata]: ...
+    def get(self, layer_id: str) -> db_models.LayerMetadata | None: ...
+
+    def all(self) -> Iterable[db_models.LayerMetadata]: ...
 
 
 class InMemoryLayerRepository(LayerRepositoryProtocol):
-    """Simple in-memory store for tests and local development."""
+    """Simple in-memory store for tests and local development.
+
+    Stores layer metadata in a dictionary. Data is lost when the process exits.
+    Suitable for testing and development scenarios.
+    """
 
     def __init__(self) -> None:
-        self._store: Dict[str, LayerMetadata] = {}
+        """Initialize an empty in-memory repository."""
+        self._store: dict[str, db_models.LayerMetadata] = {}
 
-    def add(self, layer: LayerMetadata) -> LayerMetadata:
+    def add(self, layer: db_models.LayerMetadata) -> db_models.LayerMetadata:
+        """Add or update a layer in the repository.
+
+        Args:
+            layer: Layer metadata to store.
+
+        Returns:
+            The stored layer metadata.
+        """
         self._store[layer.id] = layer
         return layer
 
-    def get(self, layer_id: str) -> Optional[LayerMetadata]:
+    def get(self, layer_id: str) -> db_models.LayerMetadata | None:
+        """Retrieve a layer by ID.
+
+        Args:
+            layer_id: Unique identifier for the layer.
+
+        Returns:
+            LayerMetadata if found, None otherwise.
+        """
         return self._store.get(layer_id)
 
-    def all(self) -> Iterable[LayerMetadata]:
+    def all(self) -> Iterable[db_models.LayerMetadata]:
+        """Get all stored layers.
+
+        Returns:
+            Iterable of all LayerMetadata objects in the repository.
+        """
         return self._store.values()
 
 
 class PostgresLayerRepository(LayerRepositoryProtocol):
-    """PostgreSQL/PostGIS-backed repository for layer metadata."""
+    """PostgreSQL/PostGIS-backed repository for layer metadata.
+
+    Persists layer metadata to a PostgreSQL database with PostGIS extension.
+    Automatically creates the layers table and enables PostGIS
+    on initialization.
+    """
 
     CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS layers (
@@ -59,29 +110,46 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
     );
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: config.Settings) -> None:
+        """Initialize repository with database settings.
+
+        Args:
+            settings: Application settings containing database connection URL.
+        """
         self.settings = settings
         self._ensure_schema()
 
-    def _connection(self) -> psycopg.Connection:
-        return psycopg.connect(self.settings.database_url)
+    def _connection(self) -> psycopg2.extensions.connection:
+        """Create a new database connection.
+
+        Returns:
+            psycopg2 connection object.
+        """
+        return psycopg2.connect(self.settings.database_url)
 
     def _ensure_schema(self) -> None:
+        """Ensure PostGIS extension and layers table exist.
+
+        Creates the PostGIS extension if not present and creates the layers
+        table if it doesn't exist. Called automatically on initialization.
+        """
         with self._connection() as conn, conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
             cur.execute(self.CREATE_TABLE_SQL)
             conn.commit()
 
-    def add(self, layer: LayerMetadata) -> LayerMetadata:
+    def add(self, layer: db_models.LayerMetadata) -> db_models.LayerMetadata:
         with self._connection() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO layers (
                     id, name, source, provider, table_name, geom_type, srid,
-                    bbox_minx, bbox_miny, bbox_maxx, bbox_maxy, local_path, created_at
-                ) VALUES (%(id)s, %(name)s, %(source)s, %(provider)s, %(table_name)s,
-                    %(geom_type)s, %(srid)s, %(bbox_minx)s, %(bbox_miny)s,
-                    %(bbox_maxx)s, %(bbox_maxy)s, %(local_path)s, %(created_at)s)
+                    bbox_minx, bbox_miny, bbox_maxx, bbox_maxy, local_path,
+                    created_at
+                ) VALUES (%(id)s, %(name)s, %(source)s, %(provider)s,
+                    %(table_name)s, %(geom_type)s, %(srid)s, %(bbox_minx)s,
+                    %(bbox_miny)s, %(bbox_maxx)s, %(bbox_maxy)s,
+                    %(local_path)s, %(created_at)s)
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     source = EXCLUDED.source,
@@ -100,22 +168,31 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
             conn.commit()
         return layer
 
-    def get(self, layer_id: str) -> Optional[LayerMetadata]:
-        with self._connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+    def get(self, layer_id: str) -> db_models.LayerMetadata | None:
+        with self._connection() as conn, conn.cursor() as cur:
             cur.execute("SELECT * FROM layers WHERE id = %s", (layer_id,))
             row = cur.fetchone()
-            if not row:
+            if row is None:
                 return None
-            return self._from_row(row)
+            else:
+                return self._from_row(cast(dict[str, object], row))
 
-    def all(self) -> Iterable[LayerMetadata]:
-        with self._connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+    def all(self) -> Iterable[db_models.LayerMetadata]:
+        with self._connection() as conn, conn.cursor() as cur:
             cur.execute("SELECT * FROM layers ORDER BY created_at DESC")
             for row in cur.fetchall():
-                yield self._from_row(row)
+                yield self._from_row(cast(dict[str, object], row))
 
     @staticmethod
-    def _to_row(layer: LayerMetadata) -> Dict[str, object]:
+    def _to_row(layer: db_models.LayerMetadata) -> dict[str, object]:
+        """Convert LayerMetadata to database row dictionary.
+
+        Args:
+            layer: Layer metadata to convert.
+
+        Returns:
+            Dictionary suitable for parameterized SQL insertion.
+        """
         bbox = layer.bbox or (None, None, None, None)
         return {
             "id": layer.id,
@@ -134,7 +211,15 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
         }
 
     @staticmethod
-    def _from_row(row: Dict[str, object]) -> LayerMetadata:
+    def _from_row(row: dict[str, object]) -> db_models.LayerMetadata:
+        """Convert database row dictionary to LayerMetadata.
+
+        Args:
+            row: Dictionary from database query result.
+
+        Returns:
+            LayerMetadata object with all fields populated.
+        """
         bbox = (
             row.get("bbox_minx"),
             row.get("bbox_miny"),
@@ -146,32 +231,23 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
         else:
             bbox_tuple = tuple(bbox)  # type: ignore[arg-type]
         srid_value = row.get("srid")
-        srid = (
-            int(cast(int, srid_value)) if srid_value is not None else None
-        )
+        srid = int(cast(int, srid_value)) if srid_value is not None else None
         table_name_value = row.get("table_name")
-        table_name = (
-            cast(str, table_name_value) if table_name_value is not None else None
-        )
+        table_name = _cast(table_name_value, str)
         geom_type_value = row.get("geom_type")
-        geom_type = (
-            cast(str, geom_type_value) if geom_type_value is not None else None
-        )
+        geom_type = _cast(geom_type_value, str)
         local_path_value = row.get("local_path")
-        local_path = (
-            cast(str, local_path_value) if local_path_value is not None else None
-        )
+        local_path = _cast(local_path_value, str)
         created_at_value = row.get("created_at")
-        created_at = (
-            cast(datetime, created_at_value)
-            if created_at_value is not None
-            else datetime.now(timezone.utc)
-        )
-        return LayerMetadata(
+        created_at = _cast(
+            created_at_value, datetime.datetime
+        ) or datetime.datetime.now(datetime.UTC)
+
+        return db_models.LayerMetadata(
             id=str(row["id"]),
             name=str(row["name"]),
             source=str(row["source"]),
-            provider=cast(Provider, str(row["provider"])),
+            provider=cast(db_models.Provider, str(row["provider"])),
             table_name=table_name,
             geom_type=geom_type,
             srid=srid,
@@ -181,12 +257,27 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
         )
 
 
-def get_layer_repository(settings: Settings) -> LayerRepositoryProtocol:
-    """Return a Postgres-backed layer repository."""
+def get_layer_repository(settings: config.Settings) -> LayerRepositoryProtocol:
+    """Factory function to create a layer repository.
+
+    Args:
+        settings: Application settings for database connection.
+
+    Returns:
+        PostgresLayerRepository instance for production use.
+    """
     return PostgresLayerRepository(settings)
 
 
-def get_connection(settings: Settings) -> psycopg.Connection:
-    """Create a synchronous psycopg connection using provided settings."""
-    return psycopg.connect(settings.database_url)
+def get_connection(
+    settings: config.Settings,
+) -> psycopg2.extensions.connection:
+    """Create a synchronous psycopg2 extensions connection.
 
+    Args:
+        settings: Application settings containing database connection URL.
+
+    Returns:
+        psycopg2 extensions connection object for direct database access.
+    """
+    return psycopg2.connect(settings.database_url)
