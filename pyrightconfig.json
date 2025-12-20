@@ -1,9 +1,0 @@
-{
-  "include": ["backend/app"],
-  "pythonVersion": "3.11",
-  "typeCheckingMode": "strict",
-  "reportMissingImports": true,
-  "reportMissingTypeStubs": false,
-  "ignore": ["**/.venv", "**/venv", "**/__pycache__"]
-}
-
