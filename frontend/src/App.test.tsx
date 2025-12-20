@@ -4,24 +4,52 @@ import {describe, expect, it, vi, beforeEach} from "vitest";
 
 import App from "./App";
 
-const addSource = vi.fn();
-const addLayer = vi.fn();
-const getSource = vi.fn();
-const fitBounds = vi.fn();
-const addControl = vi.fn();
+const {
+  addSource,
+  addLayer,
+  getSource,
+  fitBounds,
+  addControl,
+  MockMap,
+  axiosGet,
+} = vi.hoisted(() => {
+  const addSource = vi.fn();
+  const addLayer = vi.fn();
+  const getSource = vi.fn();
+  const fitBounds = vi.fn();
+  const addControl = vi.fn();
 
-vi.mock("maplibre-gl", () => ({
-  default: vi.fn().mockImplementation(() => ({
+  // Create mock Map constructor
+  const MockMap = vi.fn().mockImplementation(() => ({
     addControl,
     addSource,
     addLayer,
     getSource,
     fitBounds,
-  })),
+  }));
+
+  const axiosGet = vi.fn();
+
+  return {
+    addSource,
+    addLayer,
+    getSource,
+    fitBounds,
+    addControl,
+    MockMap,
+    axiosGet,
+  };
+});
+
+vi.mock("maplibre-gl", () => ({
+  default: {
+    Map: MockMap,
+    NavigationControl: vi.fn(),
+  },
+  Map: MockMap,
   NavigationControl: vi.fn(),
 }));
 
-const axiosGet = vi.fn();
 vi.mock("axios", () => ({
   default: {get: axiosGet},
 }));

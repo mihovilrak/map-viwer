@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "vitest",
+    "test": "vitest --run",
     "docs:ts": "tsdoc src --out docs",
     "e2e": "playwright test"
   },

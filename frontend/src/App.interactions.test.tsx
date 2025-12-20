@@ -4,19 +4,33 @@ import {beforeEach, describe, expect, it, vi} from "vitest";
 
 import App from "./App";
 
-const addSource = vi.fn();
-const addLayer = vi.fn();
-const getSource = vi.fn().mockReturnValue(undefined);
-const fitBounds = vi.fn();
+const {addSource, addLayer, getSource, fitBounds, addControl, MockMap} = vi.hoisted(() => {
+  const addSource = vi.fn();
+  const addLayer = vi.fn();
+  const getSource = vi.fn().mockReturnValue(undefined);
+  const fitBounds = vi.fn();
+  const addControl = vi.fn();
+
+  // Create mock Map constructor as a class
+  class MockMapClass {
+    addControl = addControl;
+    addSource = addSource;
+    addLayer = addLayer;
+    getSource = getSource;
+    fitBounds = fitBounds;
+  }
+
+  const MockMap = vi.fn().mockImplementation(() => new MockMapClass());
+
+  return {addSource, addLayer, getSource, fitBounds, addControl, MockMap};
+});
 
 vi.mock("maplibre-gl", () => ({
-  default: vi.fn().mockImplementation(() => ({
-    addControl: vi.fn(),
-    addSource,
-    addLayer,
-    getSource,
-    fitBounds,
-  })),
+  default: {
+    Map: MockMap,
+    NavigationControl: vi.fn(),
+  },
+  Map: MockMap,
   NavigationControl: vi.fn(),
 }));
 
@@ -30,8 +44,12 @@ const mockedAxios = vi.mocked(axios, {deep: true});
 
 describe("App interactions", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
-    getSource.mockReturnValue(undefined);
+    // Reset individual mocks instead of all mocks to preserve MockMap implementation
+    addSource.mockReset();
+    addLayer.mockReset();
+    getSource.mockReset().mockReturnValue(undefined);
+    fitBounds.mockReset();
+    addControl.mockReset();
     mockedAxios.get.mockReset();
   });
 
@@ -42,7 +60,8 @@ describe("App interactions", () => {
     render(<App />);
 
     await waitFor(() => screen.getByText(/roads/i));
-    fireEvent.click(screen.getByText(/View/i));
+    const viewButton = screen.getByRole("button", {name: /View/i});
+    fireEvent.click(viewButton);
 
     await waitFor(() => expect(addSource).toHaveBeenCalled());
     expect(addLayer).toHaveBeenCalled();
@@ -55,7 +74,8 @@ describe("App interactions", () => {
     render(<App />);
 
     await waitFor(() => screen.getByText(/r1/i));
-    fireEvent.click(screen.getByText(/View/i));
+    const viewButton = screen.getByRole("button", {name: /View/i});
+    fireEvent.click(viewButton);
 
     await waitFor(() => expect(addSource).toHaveBeenCalled());
   });
