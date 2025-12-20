@@ -1,4 +1,39 @@
-"""Database helpers and repositories for layer metadata."""
+"""Repository pattern implementation for layer metadata persistence.
+
+This module provides the repository abstraction for storing and retrieving
+layer metadata. It includes both in-memory (for testing) and PostgreSQL
+(for production) implementations. The repository pattern enables dependency
+injection and testability.
+
+The PostgresLayerRepository automatically creates the PostGIS extension and
+layers table schema on initialization. All database operations use
+parameterized queries to prevent SQL injection.
+
+Example:
+    Using the repository in production:
+        >>> from app.core.config import get_settings
+        >>> from app.db.database import get_layer_repository
+        >>> from app.db.models import LayerMetadata
+
+        >>> settings = get_settings()
+        >>> repo = get_layer_repository(settings)
+
+        >>> # Add a layer
+        >>> layer = LayerMetadata(id="1", name="test", ...)
+        >>> stored = repo.add(layer)
+
+        >>> # Retrieve a layer
+        >>> found = repo.get("1")
+
+        >>> # List all layers
+        >>> for layer in repo.all():
+        ...     print(layer.name)
+
+    Using in-memory repository for testing:
+        >>> repo = InMemoryLayerRepository()
+        >>> repo.add(layer)
+        >>> assert repo.get("1") is not None
+"""
 
 from __future__ import annotations
 
@@ -16,12 +51,9 @@ if TYPE_CHECKING:
     from app.core import config
 
 
-def _cast[T](value: object, dtype: type[T]) -> T | None:  # type: ignore[misc]
+def _cast[T](value: object | None, dtype: type[T]) -> T | None:  # type: ignore[misc]
     """Cast a value to a specific type, returning None if value is None."""
-    if value is None:
-        return None
-
-    return cast(T, value)
+    return cast(T, value) if value is not None else None
 
 
 class LayerRepositoryProtocol(Protocol):
@@ -48,7 +80,7 @@ class InMemoryLayerRepository(LayerRepositoryProtocol):
     Suitable for testing and development scenarios.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize an empty in-memory repository."""
         self._store: dict[str, db_models.LayerMetadata] = {}
 
@@ -110,7 +142,7 @@ class PostgresLayerRepository(LayerRepositoryProtocol):
     );
     """
 
-    def __init__(self, settings: config.Settings) -> None:
+    def __init__(self, settings: config.Settings):
         """Initialize repository with database settings.
 
         Args:
