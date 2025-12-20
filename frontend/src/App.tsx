@@ -2,18 +2,37 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import axios from "axios";
 import maplibregl, {Map, type StyleSpecification} from "maplibre-gl";
 
+/**
+ * Metadata for a geospatial layer.
+ */
 type LayerMetadata = {
+  /** Unique identifier for the layer. */
   id: string;
+  /** Human-readable layer name. */
   name: string;
+  /** Data provider type (postgis, geopackage, cog, or mbtiles). */
   provider: "postgis" | "geopackage" | "cog" | "mbtiles";
+  /** Bounding box in Web Mercator (EPSG:3857) as [minx, miny, maxx, maxy]. */
   bbox?: [number, number, number, number];
 };
 
+/**
+ * Base URL for the backend API.
+ * Reads from VITE_API_BASE_URL environment variable or defaults to current origin.
+ */
 const apiBase =
   (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ??
   window.location.origin ??
   "http://localhost:8000";
 
+/**
+ * Main application component for the map viewer.
+ *
+ * Displays a list of available layers and renders them on a MapLibre map.
+ * Supports both vector (PostGIS) and raster (COG) layers.
+ *
+ * @returns React component with sidebar and map view.
+ */
 function App() {
   const mapRef = useRef<Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -55,6 +74,15 @@ function App() {
       .catch((err) => setError(err.message));
   }, []);
 
+  /**
+   * Focuses the map on a layer and adds it to the map if not already present.
+   *
+   * For vector layers: adds vector tile source and fill/line layers.
+   * For raster layers: adds raster tile source and raster layer.
+   * Zooms the map to the layer's bounding box if available.
+   *
+   * @param layer - Layer metadata to focus on.
+   */
   const focusLayer = (layer: LayerMetadata) => {
     setSelected(layer.id);
     if (!mapRef.current) {
