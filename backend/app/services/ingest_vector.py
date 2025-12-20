@@ -1,4 +1,34 @@
-"""Vector ingestion using ogr2ogr into PostGIS."""
+"""Vector data ingestion service using ogr2ogr.
+
+This module provides functionality to import vector datasets into PostGIS
+using the ogr2ogr command-line tool. All geometries are automatically
+transformed to EPSG:3857 (Web Mercator) at ingestion time using the
+`-t_srs EPSG:3857` flag, ensuring consistent coordinate systems for
+web mapping applications.
+
+After import, the service extracts metadata including geometry type,
+spatial reference system (SRID), and bounding box from the PostGIS table.
+
+Example:
+    Ingest a GeoJSON file into PostGIS:
+        >>> from app.core.config import get_settings
+        >>> from app.services.ingest_vector import ingest_vector_to_postgis
+        >>> from pathlib import Path
+
+        >>> settings = get_settings()
+        >>> source_file = Path("data.geojson")
+        >>> table_name = "my_layer"
+
+        >>> metadata = ingest_vector_to_postgis(
+        ...     source_path=source_file,
+        ...     table_name=table_name,
+        ...     settings=settings
+        ... )
+        >>> # Returns LayerMetadata with:
+        >>> # - geom_type: "Point", "LineString", "Polygon", etc.
+        >>> # - srid: 3857 (always Web Mercator after ingestion)
+        >>> # - bbox: (minx, miny, maxx, maxy) in Web Mercator coordinates
+"""
 
 from __future__ import annotations
 
@@ -53,14 +83,12 @@ def _fetch_metadata(
             {"table_name": quoted_table},
         )
         row = cur.fetchone()
-        geom_type: str | None = (
-            cast(str, row[0]) if row and row[0] is not None else None
-        )
-        srid: int | None = (
-            cast(int, row[1]) if row and row[1] is not None else None
-        )
+        geom_type, srid = row if row is not None else (None, None)
 
-        quoted_table = psycopg2.extensions.quote_ident(table_name, conn)  # type: ignore[arg-type]
+        quoted_table = psycopg2.extensions.quote_ident(  # type: ignore[arg-type]
+            table_name,
+            conn,
+        )
         cur.execute(
             """
             SELECT ST_XMin(ext), ST_YMin(ext), ST_XMax(ext), ST_YMax(ext)
@@ -84,21 +112,52 @@ def ingest_vector_to_postgis(
     table_name: str,
     settings: config.Settings,
 ) -> db_models.LayerMetadata:
-    """Import a vector dataset into PostGIS using ogr2ogr.
+    r"""Import a vector dataset into PostGIS using ogr2ogr.
 
     Transforms all geometries to EPSG:3857 (Web Mercator) at ingestion time
-    to ensure consistent coordinate system for web mapping.
+    to ensure consistent coordinate system for web mapping. The transformation
+    is performed using the `-t_srs EPSG:3857` flag in ogr2ogr, which reprojects
+    all geometries regardless of their source coordinate system.
+
+    After import, metadata is extracted from PostGIS including geometry type,
+    SRID (should be 3857), and bounding box in Web Mercator coordinates.
 
     Args:
-        source_path: Path to the uploaded vector file.
-        table_name: Destination layer/table name.
-        settings: Application settings.
+        source_path: Path to the uploaded vector file
+            (any OGR-supported format).
+        table_name: Destination layer/table name in PostGIS (must be valid
+            identifier: alphanumeric + underscores only).
+        settings: Application settings containing database connection URL.
 
     Returns:
-        LayerMetadata describing the ingested layer.
+        LayerMetadata describing the ingested layer with:
+        - provider: "postgis"
+        - table_name: The PostGIS table name
+        - geom_type: Geometry type from PostGIS
+        - srid: 3857 (always Web Mercator after transformation)
+        - bbox: Bounding box in Web Mercator coordinates
 
     Raises:
-        CommandError: If ogr2ogr command fails.
+        CommandError: If ogr2ogr command fails
+            (invalid file, database error, etc.).
+
+    Example:
+        Ingest a GeoJSON file:
+            >>> from pathlib import Path
+            >>> from app.core.config import get_settings
+            >>> from app.services.ingest_vector import ingest_vector_to_postgis
+
+            >>> settings = get_settings()
+            >>> metadata = ingest_vector_to_postgis(
+            ...     source_path=Path("cities.geojson"),
+            ...     table_name="cities",
+            ...     settings=settings
+            ... )
+            >>> # Returns LayerMetadata with srid=3857, bbox in Web Mercator
+
+        The ogr2ogr command executed:
+            $ ogr2ogr -f PostgreSQL "postgresql://..." cities.geojson \\
+            $    -t_srs EPSG:3857 -nln cities -lco GEOMETRY_NAME=geom -overwrite
     """
     command = (
         "ogr2ogr",
