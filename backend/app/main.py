@@ -1,4 +1,17 @@
-"""FastAPI entrypoint."""
+"""FastAPI application entrypoint and configuration.
+
+This module provides the main FastAPI application factory that sets up
+CORS middleware, includes API routers for ingestion, layers, and tiles,
+and exposes a health check endpoint for monitoring.
+
+Example:
+    The application can be run with uvicorn:
+        $ uvicorn app.main:app --reload
+
+    Or imported and used programmatically:
+        >>> from app.main import app
+        >>> # Use app in ASGI server
+"""
 
 import fastapi
 from fastapi.middleware import cors
@@ -10,11 +23,18 @@ from app.core import config
 def create_app() -> fastapi.FastAPI:
     """Create and configure the FastAPI application.
 
-    Sets up CORS middleware, includes API routers,
-    and adds a health check endpoint.
+    Sets up CORS middleware, includes API routers for ingestion, layers,
+    and tiles, and adds a health check endpoint. CORS origins are configured
+    from settings, allowing cross-origin requests from specified domains.
 
     Returns:
-        Configured FastAPI application instance.
+        Configured FastAPI application instance ready for ASGI server.
+
+    Example:
+        The app can be used with uvicorn or other ASGI servers:
+            >>> app = create_app()
+            >>> # Or use the module-level app instance:
+            >>> from app.main import app
     """
     settings = config.get_settings()
     app = fastapi.FastAPI(title="Map Viewer", version="0.1.0")
