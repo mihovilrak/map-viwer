@@ -1,6 +1,6 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
-import maplibregl, {Map, type StyleSpecification} from "maplibre-gl";
+import maplibregl, { Map, type StyleSpecification } from "maplibre-gl";
 
 /**
  * Metadata for a geospatial layer.
@@ -50,7 +50,7 @@ function App() {
           tileSize: 256,
         },
       },
-      layers: [{id: "osm-base", type: "raster", source: "osm-tiles"}],
+      layers: [{ id: "osm-base", type: "raster", source: "osm-tiles" }],
     }),
     [],
   );
@@ -126,7 +126,7 @@ function App() {
           id: `raster-${layer.id}`,
           type: "raster",
           source: sourceId,
-          paint: {"raster-opacity": 0.8},
+          paint: { "raster-opacity": 0.8 },
         });
       }
     }
@@ -141,7 +141,7 @@ function App() {
           [minx, miny],
           [maxx, maxy],
         ],
-        {padding: 32, animate: true},
+        { padding: 32, animate: true },
       );
     }
   };
@@ -153,7 +153,10 @@ function App() {
         {error && <p className="error">{error}</p>}
         <ul>
           {layers.map((layer) => (
-            <li key={layer.id} className={layer.id === selected ? "selected" : ""}>
+            <li
+              key={layer.id}
+              className={layer.id === selected ? "selected" : ""}
+            >
               <div>
                 <strong>{layer.name}</strong> <small>({layer.provider})</small>
               </div>
@@ -170,4 +173,3 @@ function App() {
 }
 
 export default App;
-

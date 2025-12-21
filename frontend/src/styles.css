@@ -1,11 +1,17 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #0f172a;
 }
 
-body, html, #root {
+body,
+html,
+#root {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -72,4 +78,3 @@ body, html, #root {
 .error {
   color: #b91c1c;
 }
-

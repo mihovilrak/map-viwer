@@ -4,4 +4,3 @@
   "includePrivate": false,
   "exclude": ["**/*.test.tsx"]
 }
-

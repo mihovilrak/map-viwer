@@ -1,44 +1,38 @@
 import "@testing-library/jest-dom/vitest";
-import {fireEvent, render, screen, waitFor} from "@testing-library/react";
-import {describe, expect, it, vi, beforeEach} from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import App from "./App";
 
-const {
-  addSource,
-  addLayer,
-  getSource,
-  fitBounds,
-  MockMap,
-  axiosGet,
-} = vi.hoisted(() => {
-  const addSource = vi.fn();
-  const addLayer = vi.fn();
-  const getSource = vi.fn();
-  const fitBounds = vi.fn();
-  const addControl = vi.fn();
+const { addSource, addLayer, getSource, fitBounds, MockMap, axiosGet } =
+  vi.hoisted(() => {
+    const addSource = vi.fn();
+    const addLayer = vi.fn();
+    const getSource = vi.fn();
+    const fitBounds = vi.fn();
+    const addControl = vi.fn();
 
-  // Create mock Map constructor
-  const MockMap = vi.fn().mockImplementation(() => ({
-    addControl,
-    addSource,
-    addLayer,
-    getSource,
-    fitBounds,
-  }));
+    // Create mock Map constructor
+    const MockMap = vi.fn().mockImplementation(() => ({
+      addControl,
+      addSource,
+      addLayer,
+      getSource,
+      fitBounds,
+    }));
 
-  const axiosGet = vi.fn();
+    const axiosGet = vi.fn();
 
-  return {
-    addSource,
-    addLayer,
-    getSource,
-    fitBounds,
-    addControl,
-    MockMap,
-    axiosGet,
-  };
-});
+    return {
+      addSource,
+      addLayer,
+      getSource,
+      fitBounds,
+      addControl,
+      MockMap,
+      axiosGet,
+    };
+  });
 
 vi.mock("maplibre-gl", () => ({
   default: {
@@ -50,7 +44,7 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 vi.mock("axios", () => ({
-  default: {get: axiosGet},
+  default: { get: axiosGet },
 }));
 
 beforeEach(() => {
@@ -63,7 +57,7 @@ beforeEach(() => {
 
 describe("App", () => {
   it("renders header", () => {
-    axiosGet.mockResolvedValue({data: []});
+    axiosGet.mockResolvedValue({ data: [] });
     render(<App />);
     expect(screen.getByText(/Map Viewer/)).toBeInTheDocument();
   });
@@ -76,7 +70,9 @@ describe("App", () => {
 
   it("adds vector source and layers on click", async () => {
     axiosGet.mockResolvedValue({
-      data: [{id: "1", name: "demo", provider: "postgis", bbox: [0, 0, 1, 1]}],
+      data: [
+        { id: "1", name: "demo", provider: "postgis", bbox: [0, 0, 1, 1] },
+      ],
     });
     getSource.mockReturnValue(undefined);
     render(<App />);
@@ -92,7 +88,13 @@ describe("App", () => {
 
   it("adds raster source on click", async () => {
     axiosGet.mockResolvedValue({
-      data: [{id: "r1", name: "raster", provider: "cog", bbox: [1, 2, 3, 4]}],
+      data: [{
+        id: "r1",
+        name: "raster",
+        provider: "cog",
+        bbox: [1, 2, 3, 4],
+      },
+    ],
     });
     getSource.mockReturnValue(undefined);
     render(<App />);
@@ -105,4 +107,3 @@ describe("App", () => {
     });
   });
 });
-
