@@ -13,7 +13,7 @@ python-dotenv==1.2.1
 python-multipart==0.0.21
 rio-tiler==8.0.4
 ruff==0.14.10
-sphinx-autodoc-napoleon-typehints==2.1.6
+sphinx-autodoc-typehints==3.5.0
 sphinx==8.2.3
 sphinx-rtd-theme==3.0.2
 ty==0.0.5
