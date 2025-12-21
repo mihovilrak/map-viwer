@@ -1,0 +1,294 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app package &mdash; Map View API 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="app.api package" href="app.api.html" />
+    <link rel="prev" title="backend" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Map View API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="README.html">Map Viewer Backend</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">backend</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">app package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.api.html">app.api package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html">app.db package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-app.main">app.main module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#app.main.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-app">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="conftest.html">conftest module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Map View API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">backend</a></li>
+      <li class="breadcrumb-item active">app package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/app.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="app-package">
+<h1>app package<a class="headerlink" href="#app-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="app.api.html">app.api package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#module-app.api.ingest">app.api.ingest module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest.UploadResponse"><code class="docutils literal notranslate"><span class="pre">UploadResponse</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.api.html#app.api.ingest.UploadResponse.filename"><code class="docutils literal notranslate"><span class="pre">UploadResponse.filename</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.api.html#app.api.ingest.UploadResponse.path"><code class="docutils literal notranslate"><span class="pre">UploadResponse.path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.api.html#app.api.ingest.UploadResponse.upload_id"><code class="docutils literal notranslate"><span class="pre">UploadResponse.upload_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest._convert_to_string"><code class="docutils literal notranslate"><span class="pre">_convert_to_string()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest._get_repo"><code class="docutils literal notranslate"><span class="pre">_get_repo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest._save_upload"><code class="docutils literal notranslate"><span class="pre">_save_upload()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest._validate_layer_name"><code class="docutils literal notranslate"><span class="pre">_validate_layer_name()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest.ingest_layer"><code class="docutils literal notranslate"><span class="pre">ingest_layer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.ingest.upload_layer"><code class="docutils literal notranslate"><span class="pre">upload_layer()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#module-app.api.layers">app.api.layers module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.layers._get_repo"><code class="docutils literal notranslate"><span class="pre">_get_repo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.layers.get_layer_bbox"><code class="docutils literal notranslate"><span class="pre">get_layer_bbox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.layers.list_layers"><code class="docutils literal notranslate"><span class="pre">list_layers()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#module-app.api.tiles">app.api.tiles module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.tiles._build_tegola_url"><code class="docutils literal notranslate"><span class="pre">_build_tegola_url()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.tiles._get_repo"><code class="docutils literal notranslate"><span class="pre">_get_repo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.tiles.proxy_vector_tile"><code class="docutils literal notranslate"><span class="pre">proxy_vector_tile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.api.html#app.api.tiles.raster_tile"><code class="docutils literal notranslate"><span class="pre">raster_tile()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#module-app.api">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.db.html">app.db package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#module-app.db.database">app.db.database module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database.InMemoryLayerRepository"><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.InMemoryLayerRepository.__init__"><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.InMemoryLayerRepository.add"><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository.add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.InMemoryLayerRepository.all"><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository.all()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.InMemoryLayerRepository.get"><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository.get()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database.LayerRepositoryProtocol"><code class="docutils literal notranslate"><span class="pre">LayerRepositoryProtocol</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.LayerRepositoryProtocol.add"><code class="docutils literal notranslate"><span class="pre">LayerRepositoryProtocol.add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.LayerRepositoryProtocol.all"><code class="docutils literal notranslate"><span class="pre">LayerRepositoryProtocol.all()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.LayerRepositoryProtocol.get"><code class="docutils literal notranslate"><span class="pre">LayerRepositoryProtocol.get()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository.CREATE_TABLE_SQL"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository.CREATE_TABLE_SQL</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository.__init__"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository._connection"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository._connection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository._ensure_schema"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository._ensure_schema()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository._from_row"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository._from_row()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository._to_row"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository._to_row()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository.add"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository.add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository.all"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository.all()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.database.PostgresLayerRepository.get"><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository.get()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database._cast"><code class="docutils literal notranslate"><span class="pre">_cast()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database.get_connection"><code class="docutils literal notranslate"><span class="pre">get_connection()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.database.get_layer_repository"><code class="docutils literal notranslate"><span class="pre">get_layer_repository()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#module-app.db.models">app.db.models module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata"><code class="docutils literal notranslate"><span class="pre">LayerMetadata</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.id"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.name"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.source"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.provider"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.provider</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.table_name"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.table_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.geom_type"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.geom_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.srid"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.srid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.bbox"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.bbox</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.local_path"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.local_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#app.db.models.LayerMetadata.created_at"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id0"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.bbox</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id1"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id2"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.geom_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id3"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id4"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.local_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id5"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id6"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.provider</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id7"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.source</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id8"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.srid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.db.html#id9"><code class="docutils literal notranslate"><span class="pre">LayerMetadata.table_name</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#module-app.db">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-app.main">
+<span id="app-main-module"></span><h2>app.main module<a class="headerlink" href="#module-app.main" title="Link to this heading"></a></h2>
+<p>FastAPI application entrypoint and configuration.</p>
+<p>This module provides the main FastAPI application factory that sets up
+CORS middleware, includes API routers for ingestion, layers, and tiles,
+and exposes a health check endpoint for monitoring.</p>
+<p class="rubric">Example</p>
+<dl>
+<dt>The application can be run with uvicorn:</dt><dd><p>$ uvicorn app.main:app –reload</p>
+</dd>
+<dt>Or imported and used programmatically:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">app.main</span> <span class="kn">import</span> <span class="n">app</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Use app in ASGI server</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="app.main.create_app">
+<span class="sig-prename descclassname"><span class="pre">app.main.</span></span><span class="sig-name descname"><span class="pre">create_app</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/main.html#create_app"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.main.create_app" title="Link to this definition"></a></dt>
+<dd><p>Create and configure the FastAPI application.</p>
+<p>Sets up CORS middleware, includes API routers for ingestion, layers,
+and tiles, and adds a health check endpoint. CORS origins are configured
+from settings, allowing cross-origin requests from specified domains.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">FastAPI</span></code></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Configured FastAPI application instance ready for ASGI server.</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<dl>
+<dt>The app can be used with uvicorn or other ASGI servers:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">app</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Or use the module-level app instance:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">app.main</span> <span class="kn">import</span> <span class="n">app</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-app">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-app" title="Link to this heading"></a></h2>
+<p>App package initializer for backend FastAPI geospatial service.</p>
+<p>This package contains the core backend for geospatial vector
+and raster data ingestion,tile serving, and metadata management.
+The system ensures all ingested data istransformed to EPSG:3857
+(Web Mercator) at import time and provides APIs forlayer registration,
+Cloud Optimized GeoTIFF workflows, and PostGIS-backed vector tiles.</p>
+<ul class="simple">
+<li><p>Handles secure ingestion of OGR/GDAL datasets into PostGIS and COGs</p></li>
+<li><p>Stores and manages layer metadata for fast lookup and API discovery</p></li>
+<li><p>Vector tiles served via PostGIS queries (EPSG:3857) through proxy endpoints</p></li>
+<li><p>Raster tiles generated on-demand via rio-tiler</p></li>
+<li><p>Designed for robust FastAPI dependency injection, testability, and compliance
+with modern geospatial backend standards</p></li>
+</ul>
+<p>See README and module sub-docstrings for details on architecture and usage.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="backend" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="app.api.html" class="btn btn-neutral float-right" title="app.api package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Mihovil Rak.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

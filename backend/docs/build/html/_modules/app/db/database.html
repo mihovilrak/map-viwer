@@ -1,0 +1,476 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.db.database &mdash; Map View API 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Map View API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Map View API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.db.database</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.db.database</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Repository pattern implementation for layer metadata persistence.</span>
+
+<span class="sd">This module provides the repository abstraction for storing and retrieving</span>
+<span class="sd">layer metadata. It includes both in-memory (for testing) and PostgreSQL</span>
+<span class="sd">(for production) implementations. The repository pattern enables dependency</span>
+<span class="sd">injection and testability.</span>
+
+<span class="sd">The PostgresLayerRepository automatically creates the PostGIS extension and</span>
+<span class="sd">layers table schema on initialization. All database operations use</span>
+<span class="sd">parameterized queries to prevent SQL injection.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    Using the repository in production:</span>
+<span class="sd">        &gt;&gt;&gt; from app.core.config import get_settings</span>
+<span class="sd">        &gt;&gt;&gt; from app.db.database import get_layer_repository</span>
+<span class="sd">        &gt;&gt;&gt; from app.db.models import LayerMetadata</span>
+
+<span class="sd">        &gt;&gt;&gt; settings = get_settings()</span>
+<span class="sd">        &gt;&gt;&gt; repo = get_layer_repository(settings)</span>
+
+<span class="sd">        &gt;&gt;&gt; # Add a layer</span>
+<span class="sd">        &gt;&gt;&gt; layer = LayerMetadata(id=&quot;1&quot;, name=&quot;test&quot;, ...)</span>
+<span class="sd">        &gt;&gt;&gt; stored = repo.add(layer)</span>
+
+<span class="sd">        &gt;&gt;&gt; # Retrieve a layer</span>
+<span class="sd">        &gt;&gt;&gt; found = repo.get(&quot;1&quot;)</span>
+
+<span class="sd">        &gt;&gt;&gt; # List all layers</span>
+<span class="sd">        &gt;&gt;&gt; for layer in repo.all():</span>
+<span class="sd">        ...     print(layer.name)</span>
+
+<span class="sd">    Using in-memory repository for testing:</span>
+<span class="sd">        &gt;&gt;&gt; repo = InMemoryLayerRepository()</span>
+<span class="sd">        &gt;&gt;&gt; repo.add(layer)</span>
+<span class="sd">        &gt;&gt;&gt; assert repo.get(&quot;1&quot;) is not None</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2.extensions</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span> <span class="k">as</span> <span class="n">db_models</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span>
+
+    <span class="kn">from</span><span class="w"> </span><span class="nn">app.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+
+
+<div class="viewcode-block" id="_cast">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database._cast">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_cast</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># type: ignore[misc]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cast a value to a specific type, returning None if value is None.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="LayerRepositoryProtocol">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.LayerRepositoryProtocol">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LayerRepositoryProtocol</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Protocol interface for storing and retrieving layer metadata.</span>
+
+<span class="sd">    Implementations provide persistence for LayerMetadata objects,</span>
+<span class="sd">    supporting both in-memory (testing) and PostgreSQL (production) backends.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LayerRepositoryProtocol.add">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.LayerRepositoryProtocol.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span></div>
+
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">layer</span><span class="p">:</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">:</span> <span class="o">...</span>
+
+<div class="viewcode-block" id="LayerRepositoryProtocol.get">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.LayerRepositoryProtocol.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="LayerRepositoryProtocol.all">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.LayerRepositoryProtocol.all">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">]:</span> <span class="o">...</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InMemoryLayerRepository">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.InMemoryLayerRepository">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InMemoryLayerRepository</span><span class="p">(</span><span class="n">LayerRepositoryProtocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple in-memory store for tests and local development.</span>
+
+<span class="sd">    Stores layer metadata in a dictionary. Data is lost when the process exits.</span>
+<span class="sd">    Suitable for testing and development scenarios.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InMemoryLayerRepository.__init__">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.InMemoryLayerRepository.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an empty in-memory repository.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+
+<div class="viewcode-block" id="InMemoryLayerRepository.add">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.InMemoryLayerRepository.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add or update a layer in the repository.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            layer: Layer metadata to store.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The stored layer metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="p">[</span><span class="n">layer</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">layer</span>
+        <span class="k">return</span> <span class="n">layer</span></div>
+
+
+<div class="viewcode-block" id="InMemoryLayerRepository.get">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.InMemoryLayerRepository.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a layer by ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            layer_id: Unique identifier for the layer.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            LayerMetadata if found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">layer_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryLayerRepository.all">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.InMemoryLayerRepository.all">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all stored layers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Iterable of all LayerMetadata objects in the repository.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="o">.</span><span class="n">values</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PostgresLayerRepository">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PostgresLayerRepository</span><span class="p">(</span><span class="n">LayerRepositoryProtocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PostgreSQL/PostGIS-backed repository for layer metadata.</span>
+
+<span class="sd">    Persists layer metadata to a PostgreSQL database with PostGIS extension.</span>
+<span class="sd">    Automatically creates the layers table and enables PostGIS</span>
+<span class="sd">    on initialization.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">CREATE_TABLE_SQL</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE IF NOT EXISTS layers (</span>
+<span class="s2">      id TEXT PRIMARY KEY,</span>
+<span class="s2">      name TEXT NOT NULL,</span>
+<span class="s2">      source TEXT NOT NULL,</span>
+<span class="s2">      provider TEXT NOT NULL,</span>
+<span class="s2">      table_name TEXT,</span>
+<span class="s2">      geom_type TEXT,</span>
+<span class="s2">      srid INTEGER,</span>
+<span class="s2">      bbox_minx DOUBLE PRECISION,</span>
+<span class="s2">      bbox_miny DOUBLE PRECISION,</span>
+<span class="s2">      bbox_maxx DOUBLE PRECISION,</span>
+<span class="s2">      bbox_maxy DOUBLE PRECISION,</span>
+<span class="s2">      local_path TEXT,</span>
+<span class="s2">      created_at TIMESTAMPTZ DEFAULT now()</span>
+<span class="s2">    );</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PostgresLayerRepository.__init__">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize repository with database settings.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            settings: Application settings containing database connection URL.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_schema</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository._connection">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository._connection">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new database connection.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            psycopg2 connection object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">database_url</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository._ensure_schema">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository._ensure_schema">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure PostGIS extension and layers table exist.</span>
+
+<span class="sd">        Creates the PostGIS extension if not present and creates the layers</span>
+<span class="sd">        table if it doesn&#39;t exist. Called automatically on initialization.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">,</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE EXTENSION IF NOT EXISTS postgis;&quot;</span><span class="p">)</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CREATE_TABLE_SQL</span><span class="p">)</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository.add">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">:</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">,</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO layers (</span>
+<span class="sd">                    id, name, source, provider, table_name, geom_type, srid,</span>
+<span class="sd">                    bbox_minx, bbox_miny, bbox_maxx, bbox_maxy, local_path,</span>
+<span class="sd">                    created_at</span>
+<span class="sd">                ) VALUES (%(id)s, %(name)s, %(source)s, %(provider)s,</span>
+<span class="sd">                    %(table_name)s, %(geom_type)s, %(srid)s, %(bbox_minx)s,</span>
+<span class="sd">                    %(bbox_miny)s, %(bbox_maxx)s, %(bbox_maxy)s,</span>
+<span class="sd">                    %(local_path)s, %(created_at)s)</span>
+<span class="sd">                ON CONFLICT (id) DO UPDATE SET</span>
+<span class="sd">                    name = EXCLUDED.name,</span>
+<span class="sd">                    source = EXCLUDED.source,</span>
+<span class="sd">                    provider = EXCLUDED.provider,</span>
+<span class="sd">                    table_name = EXCLUDED.table_name,</span>
+<span class="sd">                    geom_type = EXCLUDED.geom_type,</span>
+<span class="sd">                    srid = EXCLUDED.srid,</span>
+<span class="sd">                    bbox_minx = EXCLUDED.bbox_minx,</span>
+<span class="sd">                    bbox_miny = EXCLUDED.bbox_miny,</span>
+<span class="sd">                    bbox_maxx = EXCLUDED.bbox_maxx,</span>
+<span class="sd">                    bbox_maxy = EXCLUDED.bbox_maxy,</span>
+<span class="sd">                    local_path = EXCLUDED.local_path;</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_to_row</span><span class="p">(</span><span class="n">layer</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">layer</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository.get">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">,</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM layers WHERE id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">layer_id</span><span class="p">,))</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">row</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_row</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">row</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository.all">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository.all">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">]:</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">,</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM layers ORDER BY created_at DESC&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">():</span>
+                <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_row</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">row</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository._to_row">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository._to_row">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_to_row</span><span class="p">(</span><span class="n">layer</span><span class="p">:</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert LayerMetadata to database row dictionary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            layer: Layer metadata to convert.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary suitable for parameterized SQL insertion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">or</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+            <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
+            <span class="s2">&quot;table_name&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+            <span class="s2">&quot;geom_type&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">geom_type</span><span class="p">,</span>
+            <span class="s2">&quot;srid&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">srid</span><span class="p">,</span>
+            <span class="s2">&quot;bbox_minx&quot;</span><span class="p">:</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;bbox_miny&quot;</span><span class="p">:</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;bbox_maxx&quot;</span><span class="p">:</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s2">&quot;bbox_maxy&quot;</span><span class="p">:</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+            <span class="s2">&quot;local_path&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">local_path</span><span class="p">,</span>
+            <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="n">layer</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="PostgresLayerRepository._from_row">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.PostgresLayerRepository._from_row">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_from_row</span><span class="p">(</span><span class="n">row</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert database row dictionary to LayerMetadata.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            row: Dictionary from database query result.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            LayerMetadata object with all fields populated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bbox_minx&quot;</span><span class="p">),</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bbox_miny&quot;</span><span class="p">),</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bbox_maxx&quot;</span><span class="p">),</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bbox_maxy&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">bbox</span><span class="p">):</span>
+            <span class="n">bbox_tuple</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bbox_tuple</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bbox</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
+        <span class="n">srid_value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;srid&quot;</span><span class="p">)</span>
+        <span class="n">srid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">srid_value</span><span class="p">))</span> <span class="k">if</span> <span class="n">srid_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">table_name_value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;table_name&quot;</span><span class="p">)</span>
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">_cast</span><span class="p">(</span><span class="n">table_name_value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="n">geom_type_value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;geom_type&quot;</span><span class="p">)</span>
+        <span class="n">geom_type</span> <span class="o">=</span> <span class="n">_cast</span><span class="p">(</span><span class="n">geom_type_value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="n">local_path_value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;local_path&quot;</span><span class="p">)</span>
+        <span class="n">local_path</span> <span class="o">=</span> <span class="n">_cast</span><span class="p">(</span><span class="n">local_path_value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="n">created_at_value</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">)</span>
+        <span class="n">created_at</span> <span class="o">=</span> <span class="n">_cast</span><span class="p">(</span>
+            <span class="n">created_at_value</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span>
+        <span class="p">)</span> <span class="ow">or</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">UTC</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span><span class="p">(</span>
+            <span class="nb">id</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span>
+            <span class="n">name</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]),</span>
+            <span class="n">source</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">]),</span>
+            <span class="n">provider</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="n">db_models</span><span class="o">.</span><span class="n">Provider</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;provider&quot;</span><span class="p">])),</span>
+            <span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span>
+            <span class="n">geom_type</span><span class="o">=</span><span class="n">geom_type</span><span class="p">,</span>
+            <span class="n">srid</span><span class="o">=</span><span class="n">srid</span><span class="p">,</span>
+            <span class="n">bbox</span><span class="o">=</span><span class="n">bbox_tuple</span><span class="p">,</span>  <span class="c1"># type: ignore[arg-type]</span>
+            <span class="n">local_path</span><span class="o">=</span><span class="n">local_path</span><span class="p">,</span>
+            <span class="n">created_at</span><span class="o">=</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_layer_repository">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.get_layer_repository">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_layer_repository</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LayerRepositoryProtocol</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create a layer repository.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        settings: Application settings for database connection.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        PostgresLayerRepository instance for production use.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">PostgresLayerRepository</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_connection">
+<a class="viewcode-back" href="../../../app.db.html#app.db.database.get_connection">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_connection</span><span class="p">(</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a synchronous psycopg2 extensions connection.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        settings: Application settings containing database connection URL.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        psycopg2 extensions connection object for direct database access.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">database_url</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Mihovil Rak.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

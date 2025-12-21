@@ -1,0 +1,455 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Map Viewer Backend &mdash; Map View API 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="backend" href="modules.html" />
+    <link rel="prev" title="Map View API documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Map View API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Map Viewer Backend</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#project-structure">Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#api-endpoints">API Endpoints</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#health-check">Health Check</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#layer-management">Layer Management</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#file-upload-ingestion">File Upload &amp; Ingestion</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tile-serving">Tile Serving</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#development">Development</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code-quality">Code Quality</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing">Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code-style">Code Style</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#architecture-patterns">Architecture Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#repository-pattern">Repository Pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#service-layer">Service Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dependency-injection">Dependency Injection</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#critical-requirements">Critical Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-variables">Environment Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#docker">Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gdal-ogr-not-found">GDAL/OGR not found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#postgis-connection-errors">PostGIS connection errors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#coordinate-system-issues">Coordinate system issues</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">backend</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Map View API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Map Viewer Backend</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/README.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="map-viewer-backend">
+<h1>Map Viewer Backend<a class="headerlink" href="#map-viewer-backend" title="Link to this heading"></a></h1>
+<p>FastAPI backend service for ingesting, storing, and serving geospatial vector and raster data. Handles file uploads, transforms geometries to EPSG:3857 (Web Mercator), stores vectors in PostGIS, converts rasters to Cloud Optimized GeoTIFFs (COGs), and serves tile endpoints for both vector and raster layers.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The backend provides:</p>
+<ul class="simple">
+<li><p><strong>File Upload &amp; Ingestion</strong>: Accepts vector (GeoJSON, Shapefile, GeoPackage) and raster (GeoTIFF) files</p></li>
+<li><p><strong>Coordinate Transformation</strong>: Transforms all geometries to EPSG:3857 at ingestion time</p></li>
+<li><p><strong>PostGIS Storage</strong>: Stores vector layers in PostGIS database</p></li>
+<li><p><strong>COG Generation</strong>: Converts raster files to Cloud Optimized GeoTIFF format</p></li>
+<li><p><strong>Tile Serving</strong>: Proxies vector tiles from Tegola and generates raster tiles from COGs using rio-tiler</p></li>
+<li><p><strong>Layer Metadata</strong>: REST API for querying layer information and bounding boxes</p></li>
+</ul>
+</section>
+<section id="project-structure">
+<h2>Project Structure<a class="headerlink" href="#project-structure" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>backend/
+├── app/
+│   ├── api/              # FastAPI route handlers
+│   │   ├── ingest.py     # File upload and ingestion endpoints
+│   │   ├── layers.py     # Layer metadata endpoints
+│   │   └── tiles.py      # Vector/raster tile serving endpoints
+│   ├── core/
+│   │   └── config.py     # Settings and configuration management
+│   ├── db/
+│   │   ├── database.py   # Repository pattern for layer metadata
+│   │   └── models.py      # Database models and schemas
+│   ├── services/         # Business logic layer
+│   │   ├── ingest_raster.py  # Raster ingestion service
+│   │   ├── ingest_vector.py  # Vector ingestion service
+│   │   └── tiles_postgis.py  # PostGIS tile utilities
+│   ├── utils/
+│   │   └── gdal_helpers.py   # GDAL/ogr2ogr utilities
+│   └── main.py           # FastAPI application entrypoint
+├── tests/                # Test suite (pytest)
+├── requirements.txt      # Python dependencies
+├── Dockerfile           # Container image definition
+└── conftest.py          # Pytest configuration
+</pre></div>
+</div>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<section id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Python 3.12+</p></li>
+<li><p><a class="reference external" href="https://github.com/astral-sh/uv">uv</a> for package management</p></li>
+<li><p>PostgreSQL with PostGIS extension</p></li>
+<li><p>GDAL/OGR tools (ogr2ogr, gdal_translate, gdalwarp)</p></li>
+<li><p>Tegola service (for vector tiles)</p></li>
+</ul>
+</section>
+<section id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p>Create a virtual environment using <code class="docutils literal notranslate"><span class="pre">uv</span></code>:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>backend
+uv<span class="w"> </span>venv
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Activate the virtual environment:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># On Windows (PowerShell)</span>
+.venv<span class="se">\S</span>cripts<span class="se">\A</span>ctivate.ps1
+
+<span class="c1"># On Unix/macOS</span>
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Install dependencies:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Set up environment variables:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Copy .env.example to .env and configure</span>
+<span class="c1"># Required variables:</span>
+<span class="c1"># - DATABASE_URL: PostgreSQL connection string</span>
+<span class="c1"># - TEGOLA_BASE_URL: Tegola service URL (default: http://localhost:8080)</span>
+<span class="c1"># - ALLOW_ORIGINS: CORS allowed origins (comma-separated)</span>
+<span class="c1"># - UPLOAD_DIR: Directory for temporary file uploads</span>
+<span class="c1"># - MAX_UPLOAD_SIZE: Maximum file size in bytes (default: 536870912 = 512MB)</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p>Run the development server:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uvicorn<span class="w"> </span>app.main:app<span class="w"> </span>--reload
+</pre></div>
+</div>
+<p>The API will be available at <code class="docutils literal notranslate"><span class="pre">http://localhost:8000</span></code> with interactive docs at <code class="docutils literal notranslate"><span class="pre">http://localhost:8000/docs</span></code>.</p>
+</section>
+</section>
+<section id="api-endpoints">
+<h2>API Endpoints<a class="headerlink" href="#api-endpoints" title="Link to this heading"></a></h2>
+<section id="health-check">
+<h3>Health Check<a class="headerlink" href="#health-check" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/health</span></code> - Service health check endpoint</p></li>
+</ul>
+</section>
+<section id="layer-management">
+<h3>Layer Management<a class="headerlink" href="#layer-management" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/layers</span></code> - List all registered layers</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/layers/{layer_id}/bbox</span></code> - Get bounding box for a specific layer</p></li>
+</ul>
+</section>
+<section id="file-upload-ingestion">
+<h3>File Upload &amp; Ingestion<a class="headerlink" href="#file-upload-ingestion" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/layers/upload</span></code> - Upload a geospatial file (vector or raster)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/layers/ingest/{upload_id}</span></code> - Ingest an uploaded file</p>
+<ul>
+<li><p>Query parameters:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">kind</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;vector&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;raster&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layer_name</span></code>: Name for the layer (required for vector)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="tile-serving">
+<h3>Tile Serving<a class="headerlink" href="#tile-serving" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/tiles/vector/{layer_name}/{z}/{x}/{y}.pbf</span></code> - Vector tile (MVT format, proxied from Tegola)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/tiles/raster/{layer_id}/{z}/{x}/{y}.png</span></code> - Raster tile (PNG format, generated from COG)</p></li>
+</ul>
+</section>
+</section>
+<section id="development">
+<h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
+<section id="code-quality">
+<h3>Code Quality<a class="headerlink" href="#code-quality" title="Link to this heading"></a></h3>
+<p>The project uses:</p>
+<ul class="simple">
+<li><p><strong>ruff</strong>: Formatting and linting (replaces Black/isort)</p></li>
+<li><p><strong>ty</strong>: Type checking (NOT mypy)</p></li>
+<li><p><strong>pytest</strong>: Unit and e2e testing</p></li>
+</ul>
+<p>Run code quality checks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Format code</span>
+uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>backend
+
+<span class="c1"># Check formatting</span>
+uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>--fix<span class="w"> </span>backend
+
+<span class="c1"># Type checking</span>
+uv<span class="w"> </span>run<span class="w"> </span>ty<span class="w"> </span>check
+</pre></div>
+</div>
+</section>
+<section id="testing">
+<h3>Testing<a class="headerlink" href="#testing" title="Link to this heading"></a></h3>
+<p>Run the test suite:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>backend
+pytest
+</pre></div>
+</div>
+<p>Run with coverage (70% threshold):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>--cov<span class="o">=</span>app<span class="w"> </span>--cov-report<span class="o">=</span>term-missing
+</pre></div>
+</div>
+</section>
+<section id="code-style">
+<h3>Code Style<a class="headerlink" href="#code-style" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Follow <a class="reference external" href="https://google.github.io/styleguide/pyguide.html">Google Python Style Guide</a></p></li>
+<li><p>Use Google-style docstrings for all functions, classes, and modules</p></li>
+<li><p>Type hints are required for function parameters and return values</p></li>
+<li><p>Use dependency injection via FastAPI <code class="docutils literal notranslate"><span class="pre">Depends()</span></code> for testability</p></li>
+</ul>
+</section>
+</section>
+<section id="architecture-patterns">
+<h2>Architecture Patterns<a class="headerlink" href="#architecture-patterns" title="Link to this heading"></a></h2>
+<section id="repository-pattern">
+<h3>Repository Pattern<a class="headerlink" href="#repository-pattern" title="Link to this heading"></a></h3>
+<p>Layer metadata is abstracted through <code class="docutils literal notranslate"><span class="pre">LayerRepositoryProtocol</span></code>, allowing for:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PostgresLayerRepository</span></code>: Production implementation using PostgreSQL</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">InMemoryLayerRepository</span></code>: Testing implementation using in-memory storage</p></li>
+</ul>
+</section>
+<section id="service-layer">
+<h3>Service Layer<a class="headerlink" href="#service-layer" title="Link to this heading"></a></h3>
+<p>Business logic is separated into service modules:</p>
+<ul class="simple">
+<li><p>API handlers delegate to service modules</p></li>
+<li><p>Services are testable independently of FastAPI</p></li>
+<li><p>Services handle coordinate transformations and file processing</p></li>
+</ul>
+</section>
+<section id="dependency-injection">
+<h3>Dependency Injection<a class="headerlink" href="#dependency-injection" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Settings are injected via <code class="docutils literal notranslate"><span class="pre">config.get_settings()</span></code></p></li>
+<li><p>Repositories are injected via FastAPI <code class="docutils literal notranslate"><span class="pre">Depends()</span></code></p></li>
+<li><p>This pattern enables easy testing with mock dependencies</p></li>
+</ul>
+</section>
+</section>
+<section id="critical-requirements">
+<h2>Critical Requirements<a class="headerlink" href="#critical-requirements" title="Link to this heading"></a></h2>
+<p>⚠️ <strong>IMPORTANT</strong>: All coordinate transformations happen at ingestion time, not runtime.</p>
+<ul class="simple">
+<li><p><strong>Vector ingestion</strong>: MUST use <code class="docutils literal notranslate"><span class="pre">-t_srs</span> <span class="pre">EPSG:3857</span></code> in ogr2ogr commands</p></li>
+<li><p><strong>Raster ingestion</strong>: MUST transform to EPSG:3857 before COG creation</p></li>
+<li><p>All geometries stored in PostGIS must be in EPSG:3857</p></li>
+<li><p>All bounding boxes returned by the API are in EPSG:3857</p></li>
+</ul>
+</section>
+<section id="environment-variables">
+<h2>Environment Variables<a class="headerlink" href="#environment-variables" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Default</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">DATABASE_URL</span></code></p></td>
+<td><p>PostgreSQL connection string</p></td>
+<td><p>Required</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TEGOLA_BASE_URL</span></code></p></td>
+<td><p>Tegola service URL</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">http://localhost:8080</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ALLOW_ORIGINS</span></code></p></td>
+<td><p>CORS allowed origins (comma-separated)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">http://localhost:5173</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UPLOAD_DIR</span></code></p></td>
+<td><p>Temporary upload directory</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/tmp/uploads</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MAX_UPLOAD_SIZE</span></code></p></td>
+<td><p>Maximum file size in bytes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">536870912</span></code> (512MB)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h2>
+<p>Key dependencies:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fastapi</span></code>: Web framework</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uvicorn</span></code>: ASGI server</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">psycopg2</span></code>: PostgreSQL adapter</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pydantic</span></code> / <code class="docutils literal notranslate"><span class="pre">pydantic-settings</span></code>: Settings and validation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rio-tiler</span></code>: Raster tile generation from COGs</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span></code> / <code class="docutils literal notranslate"><span class="pre">pytest-cov</span></code>: Testing framework</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ruff</span></code>: Code formatting and linting</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ty</span></code>: Type checking</p></li>
+</ul>
+<p>See <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code> for complete list.</p>
+</section>
+<section id="docker">
+<h2>Docker<a class="headerlink" href="#docker" title="Link to this heading"></a></h2>
+<p>Build and run with Docker:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>map-viewer-backend<span class="w"> </span>.
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8000</span>:8000<span class="w"> </span>--env-file<span class="w"> </span>.env<span class="w"> </span>map-viewer-backend
+</pre></div>
+</div>
+<p>Or use <code class="docutils literal notranslate"><span class="pre">docker-compose</span></code> from the project root (see main README.md).</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="gdal-ogr-not-found">
+<h3>GDAL/OGR not found<a class="headerlink" href="#gdal-ogr-not-found" title="Link to this heading"></a></h3>
+<p>Ensure GDAL tools are installed and available in PATH:</p>
+<ul class="simple">
+<li><p>Windows: Install via OSGeo4W or conda</p></li>
+<li><p>Linux: <code class="docutils literal notranslate"><span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">gdal-bin</span></code> or <code class="docutils literal notranslate"><span class="pre">yum</span> <span class="pre">install</span> <span class="pre">gdal</span></code></p></li>
+<li><p>macOS: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">gdal</span></code></p></li>
+</ul>
+</section>
+<section id="postgis-connection-errors">
+<h3>PostGIS connection errors<a class="headerlink" href="#postgis-connection-errors" title="Link to this heading"></a></h3>
+<p>Verify:</p>
+<ul class="simple">
+<li><p>PostgreSQL is running</p></li>
+<li><p>PostGIS extension is installed: <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">EXTENSION</span> <span class="pre">postgis;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATABASE_URL</span></code> is correctly formatted</p></li>
+<li><p>Database user has necessary permissions</p></li>
+</ul>
+</section>
+<section id="coordinate-system-issues">
+<h3>Coordinate system issues<a class="headerlink" href="#coordinate-system-issues" title="Link to this heading"></a></h3>
+<p>All geometries must be transformed to EPSG:3857 at ingestion. Verify:</p>
+<ul class="simple">
+<li><p>Vector ingestion uses <code class="docutils literal notranslate"><span class="pre">-t_srs</span> <span class="pre">EPSG:3857</span></code> in ogr2ogr</p></li>
+<li><p>Raster ingestion transforms to EPSG:3857 before COG creation</p></li>
+<li><p>Check layer SRID after ingestion matches 3857</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Map View API documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="backend" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Mihovil Rak.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,423 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.api.ingest &mdash; Map View API 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Map View API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Map View API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.api.ingest</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.api.ingest</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;File upload and geospatial data ingestion API endpoints.</span>
+
+<span class="sd">This module provides REST API endpoints for uploading vector and raster</span>
+<span class="sd">files and ingesting them into the system. The upload endpoint accepts</span>
+<span class="sd">multipart file uploads and stores them temporarily. The ingest endpoint</span>
+<span class="sd">processes uploaded files based on their type (vector or raster) and</span>
+<span class="sd">transforms them to EPSG:3857 (Web Mercator) coordinate system.</span>
+
+<span class="sd">Vector files are imported into PostGIS using ogr2ogr, while raster files</span>
+<span class="sd">are converted to Cloud Optimized GeoTIFF (COG) format. All coordinate</span>
+<span class="sd">transformations occur at ingestion time, not at runtime.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    Upload and ingest a vector file:</span>
+<span class="sd">        &gt;&gt;&gt; # Step 1: Upload file</span>
+<span class="sd">        &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">        ...     &quot;/api/layers/upload&quot;,</span>
+<span class="sd">        ...     files={&quot;file&quot;: (&quot;data.geojson&quot;, open(&quot;data.geojson&quot;, &quot;rb&quot;))}</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; upload_id = response.json()[&quot;upload_id&quot;]</span>
+
+<span class="sd">        &gt;&gt;&gt; # Step 2: Ingest as vector</span>
+<span class="sd">        &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">        ...     f&quot;/api/layers/ingest/{upload_id}&quot;,</span>
+<span class="sd">        ...     params={&quot;kind&quot;: &quot;vector&quot;, &quot;layer_name&quot;: &quot;my_layer&quot;}</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; layer_metadata = response.json()</span>
+
+<span class="sd">    Upload and ingest a raster file:</span>
+<span class="sd">        &gt;&gt;&gt; # Step 1: Upload file</span>
+<span class="sd">        &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">        ...     &quot;/api/layers/upload&quot;,</span>
+<span class="sd">        ...     files={&quot;file&quot;: (&quot;raster.tif&quot;, open(&quot;raster.tif&quot;, &quot;rb&quot;))}</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; upload_id = response.json()[&quot;upload_id&quot;]</span>
+
+<span class="sd">        &gt;&gt;&gt; # Step 2: Ingest as raster</span>
+<span class="sd">        &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">        ...     f&quot;/api/layers/ingest/{upload_id}&quot;,</span>
+<span class="sd">        ...     params={&quot;kind&quot;: &quot;raster&quot;}</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; layer_metadata = response.json()</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">TypedDict</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">fastapi</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">database</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.services</span><span class="w"> </span><span class="kn">import</span> <span class="n">ingest_raster</span><span class="p">,</span> <span class="n">ingest_vector</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/api/layers&quot;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;layers&quot;</span><span class="p">])</span>
+
+<span class="n">_upload_cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<div class="viewcode-block" id="UploadResponse">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest.UploadResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UploadResponse</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">upload_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="_get_repo">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest._get_repo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_repo</span><span class="p">(</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_settings</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">database</span><span class="o">.</span><span class="n">LayerRepositoryProtocol</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve the layer repository dependency.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        settings: Application settings (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        LayerRepositoryProtocol implementation</span>
+<span class="sd">            (PostgresLayerRepository in production).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">database</span><span class="o">.</span><span class="n">get_layer_repository</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_validate_layer_name">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest._validate_layer_name">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_layer_name</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate layer name to prevent SQL injection.</span>
+
+<span class="sd">    Only allows alphanumeric characters and underscores.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: Layer name to validate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Validated layer name.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        HTTPException: If the layer name contains invalid characters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">isalnum</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">HTTPException</span><span class="p">(</span>
+            <span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
+            <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Invalid layer name&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">name</span></div>
+
+
+
+<div class="viewcode-block" id="_save_upload">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest._save_upload">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_save_upload</span><span class="p">(</span>
+    <span class="n">file</span><span class="p">:</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">UploadFile</span><span class="p">,</span>
+    <span class="n">storage_dir</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span>
+    <span class="n">max_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Persist an uploaded file to disk with size validation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file: FastAPI UploadFile object containing the file data.</span>
+<span class="sd">        storage_dir: Directory where the file should be saved.</span>
+<span class="sd">        max_size: Maximum allowed file size in bytes.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Path to the saved file.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        HTTPException: If the file exceeds the maximum size limit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">storage_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">target_path</span> <span class="o">=</span> <span class="n">storage_dir</span> <span class="o">/</span> <span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">storage_dir</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmp</span><span class="p">:</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+            <span class="n">size</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="n">max_size</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">HTTPException</span><span class="p">(</span>
+                    <span class="n">status_code</span><span class="o">=</span><span class="mi">413</span><span class="p">,</span>
+                    <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Upload too large&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="n">tmp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+
+        <span class="n">tmp</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">target_path</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">target_path</span></div>
+
+
+
+<div class="viewcode-block" id="_convert_to_string">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest._convert_to_string">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_convert_to_string</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert non-string values to strings for API response.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;srid&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;srid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;srid&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bbox&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="upload_layer">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest.upload_layer">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/upload&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload_layer</span><span class="p">(</span>
+    <span class="n">file</span><span class="p">:</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">UploadFile</span><span class="p">,</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_settings</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Accept a multipart file upload and store it temporarily.</span>
+
+<span class="sd">    The uploaded file is saved to disk and assigned an upload_id for later</span>
+<span class="sd">    ingestion. Files are stored in the configured storage directory.</span>
+<span class="sd">    The upload_id must be used within the same session to ingest the file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file: Uploaded file from multipart form data.</span>
+<span class="sd">        settings: Application settings (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary containing upload_id, filename, and storage path.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        HTTPException: If the file exceeds the maximum upload size.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        Upload a vector file:</span>
+<span class="sd">            &gt;&gt;&gt; files = {</span>
+<span class="sd">            ...     &quot;file&quot;: (</span>
+<span class="sd">            ...         &quot;data.geojson&quot;,</span>
+<span class="sd">            ...         open(&quot;data.geojson&quot;, &quot;rb&quot;),</span>
+<span class="sd">            ...         &quot;application/geo+json&quot;</span>
+<span class="sd">            ...     )</span>
+<span class="sd">            ... }</span>
+<span class="sd">            &gt;&gt;&gt; response = client.post(&quot;/api/layers/upload&quot;, files=files)</span>
+<span class="sd">            &gt;&gt;&gt; result = response.json()</span>
+<span class="sd">            &gt;&gt;&gt; # Returns: {&quot;upload_id&quot;: &quot;uuid-here&quot;,</span>
+<span class="sd">            &gt;&gt;&gt; #           &quot;filename&quot;: &quot;data.geojson&quot;, &quot;path&quot;: &quot;/tmp/...&quot;}</span>
+
+<span class="sd">        Upload a raster file:</span>
+<span class="sd">            &gt;&gt;&gt; files = {</span>
+<span class="sd">            ...     &quot;file&quot;: (</span>
+<span class="sd">            ...         &quot;raster.tif&quot;,</span>
+<span class="sd">            ...         open(&quot;raster.tif&quot;, &quot;rb&quot;),</span>
+<span class="sd">            ...         &quot;image/tiff&quot;</span>
+<span class="sd">            ...     )</span>
+<span class="sd">            ... }</span>
+<span class="sd">            &gt;&gt;&gt; response = client.post(&quot;/api/layers/upload&quot;, files=files)</span>
+<span class="sd">            &gt;&gt;&gt; upload_id = response.json()[&quot;upload_id&quot;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">saved_path</span> <span class="o">=</span> <span class="n">_save_upload</span><span class="p">(</span>
+        <span class="n">file</span><span class="p">,</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">storage_dir</span><span class="p">,</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">max_upload_size_bytes</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">upload_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+
+    <span class="n">_upload_cache</span><span class="p">[</span><span class="n">upload_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">saved_path</span>
+
+    <span class="k">return</span> <span class="n">UploadResponse</span><span class="p">(</span>
+        <span class="n">upload_id</span><span class="o">=</span><span class="n">upload_id</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+        <span class="n">path</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">saved_path</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ingest_layer">
+<a class="viewcode-back" href="../../../app.api.html#app.api.ingest.ingest_layer">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/ingest/</span><span class="si">{upload_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">ingest_layer</span><span class="p">(</span>
+    <span class="n">upload_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;vector&quot;</span><span class="p">,</span> <span class="s2">&quot;raster&quot;</span><span class="p">],</span>
+    <span class="n">layer_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_settings</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+    <span class="n">repo</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">LayerRepositoryProtocol</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">_get_repo</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ingest a previously uploaded file into the configured backend.</span>
+
+<span class="sd">    For vector files: imports to PostGIS with EPSG:3857 transformation.</span>
+<span class="sd">    For raster files: converts to COG with EPSG:3857 transformation.</span>
+<span class="sd">    All coordinate transformations occur at ingestion time, ensuring</span>
+<span class="sd">    consistent Web Mercator coordinates for web mapping.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        upload_id: ID returned from the upload endpoint.</span>
+<span class="sd">        kind: Type of layer to ingest (&quot;vector&quot; or &quot;raster&quot;).</span>
+<span class="sd">        layer_name: Required for vector layers (PostGIS table name),</span>
+<span class="sd">            ignored for raster. Must be alphanumeric + underscores only.</span>
+<span class="sd">        settings: Application settings (injected via FastAPI Depends).</span>
+<span class="sd">        repo: Layer repository for storing metadata</span>
+<span class="sd">            (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary containing the layer metadata including id, name,</span>
+<span class="sd">        provider, geom_type, srid, bbox, etc.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        HTTPException: If upload_id not found, layer_name missing for vector,</span>
+<span class="sd">            layer_name invalid, or ingestion fails.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        Ingest a vector file:</span>
+<span class="sd">            &gt;&gt;&gt; files = {</span>
+<span class="sd">            ...     &quot;file&quot;: (</span>
+<span class="sd">            ...         &quot;data.geojson&quot;,</span>
+<span class="sd">            ...         open(&quot;data.geojson&quot;, &quot;rb&quot;),</span>
+<span class="sd">            ...         &quot;application/geo+json&quot;</span>
+<span class="sd">            ...     )</span>
+<span class="sd">            ... }</span>
+<span class="sd">            &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">            ...     f&quot;/api/layers/ingest/{upload_id}&quot;,</span>
+<span class="sd">            ...     params={&quot;kind&quot;: &quot;vector&quot;, &quot;layer_name&quot;: &quot;cities&quot;}</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; metadata = response.json()</span>
+<span class="sd">            &gt;&gt;&gt; # Returns: {&quot;id&quot;: &quot;uuid&quot;, &quot;name&quot;: &quot;cities&quot;, &quot;provider&quot;: &quot;postgis&quot;,</span>
+<span class="sd">            &gt;&gt;&gt; #          &quot;geom_type&quot;: &quot;Point&quot;, &quot;srid&quot;: 3857, &quot;bbox&quot;: [...], ...}</span>
+
+<span class="sd">        Ingest a raster file:</span>
+<span class="sd">            &gt;&gt;&gt; response = client.post(</span>
+<span class="sd">            ...     f&quot;/api/layers/ingest/{upload_id}&quot;,</span>
+<span class="sd">            ...     params={&quot;kind&quot;: &quot;raster&quot;}</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; metadata = response.json()</span>
+<span class="sd">            &gt;&gt;&gt; # Returns: {&quot;id&quot;: &quot;uuid&quot;, &quot;name&quot;: &quot;raster&quot;, &quot;provider&quot;: &quot;cog&quot;,</span>
+<span class="sd">            &gt;&gt;&gt; #          &quot;geom_type&quot;: &quot;raster&quot;, &quot;local_path&quot;: &quot;/cache/...&quot;, ...}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">source_path</span> <span class="o">=</span> <span class="n">_upload_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">upload_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">source_path</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">HTTPException</span><span class="p">(</span>
+            <span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span>
+            <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Upload not found&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;vector&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">layer_name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">HTTPException</span><span class="p">(</span>
+                <span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
+                <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;layer_name required for vector&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">ingest_vector</span><span class="o">.</span><span class="n">ingest_vector_to_postgis</span><span class="p">(</span>
+            <span class="n">source_path</span><span class="p">,</span>
+            <span class="n">_validate_layer_name</span><span class="p">(</span><span class="n">layer_name</span><span class="p">),</span>
+            <span class="n">settings</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">ingest_raster</span><span class="o">.</span><span class="n">ingest_raster</span><span class="p">(</span><span class="n">source_path</span><span class="p">,</span> <span class="n">settings</span><span class="p">)</span>
+
+    <span class="n">repo</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">asdict</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_convert_to_string</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Mihovil Rak.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,276 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.api.tiles &mdash; Map View API 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Map View API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Map View API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.api.tiles</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.api.tiles</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;XYZ tile serving endpoints for vector and raster layers.</span>
+
+<span class="sd">This module provides REST API endpoints for serving map tiles in standard</span>
+<span class="sd">XYZ format. Vector tiles are proxied to the Tegola service which generates</span>
+<span class="sd">MVT (Mapbox Vector Tiles) from PostGIS. Raster tiles are generated on-demand</span>
+<span class="sd">from Cloud Optimized GeoTIFFs using rio-tiler.</span>
+
+<span class="sd">All tiles are served in EPSG:3857 (Web Mercator) coordinate system.</span>
+<span class="sd">Vector tiles are served as Protocol Buffer (.pbf) format, while raster</span>
+<span class="sd">tiles are served as PNG images.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    Request a vector tile:</span>
+<span class="sd">        &gt;&gt;&gt; response = client.get(&quot;/tiles/vector/cities/10/512/512.pbf&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; # Returns MVT tile data (binary Protocol Buffer format)</span>
+<span class="sd">        &gt;&gt;&gt; # Proxies to: http://tegola:8080/maps/cities/tiles/10/512/512.pbf</span>
+
+<span class="sd">    Request a raster tile:</span>
+<span class="sd">        &gt;&gt;&gt; response = client.get(&quot;/tiles/raster/layer_123/10/512/512.png&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; # Returns PNG image tile generated from COG</span>
+<span class="sd">        &gt;&gt;&gt; # Tile coordinates: z=10, x=512, y=512</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">fastapi</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">responses</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rio_tiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">io</span> <span class="k">as</span> <span class="n">rio_tiler_io</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">database</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">app.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span> <span class="k">as</span> <span class="n">db_models</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/tiles&quot;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;tiles&quot;</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="_build_tegola_url">
+<a class="viewcode-back" href="../../../app.api.html#app.api.tiles._build_tegola_url">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_build_tegola_url</span><span class="p">(</span><span class="n">base</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct a Tegola vector tile URL.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        base: Base URL for the Tegola service.</span>
+<span class="sd">        layer: Layer/table name in PostGIS.</span>
+<span class="sd">        z: Zoom level.</span>
+<span class="sd">        x: Tile X coordinate.</span>
+<span class="sd">        y: Tile Y coordinate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Complete URL for the vector tile in MVT format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/maps/</span><span class="si">{</span><span class="n">layer</span><span class="si">}</span><span class="s2">/tiles/</span><span class="si">{</span><span class="n">z</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s2">.pbf&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="_get_repo">
+<a class="viewcode-back" href="../../../app.api.html#app.api.tiles._get_repo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_repo</span><span class="p">(</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_settings</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">database</span><span class="o">.</span><span class="n">LayerRepositoryProtocol</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve the layer repository dependency.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        settings: Application settings (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        LayerRepositoryProtocol implementation</span>
+<span class="sd">            (PostgresLayerRepository in production).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">database</span><span class="o">.</span><span class="n">get_layer_repository</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="proxy_vector_tile">
+<a class="viewcode-back" href="../../../app.api.html#app.api.tiles.proxy_vector_tile">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/vector/</span><span class="si">{layer}</span><span class="s2">/</span><span class="si">{z}</span><span class="s2">/</span><span class="si">{x}</span><span class="s2">/</span><span class="si">{y}</span><span class="s2">.pbf&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">proxy_vector_tile</span><span class="p">(</span>
+    <span class="n">layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">z</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">Settings</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_settings</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">responses</span><span class="o">.</span><span class="n">RedirectResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Proxy vector tile requests to Tegola service.</span>
+
+<span class="sd">    FastAPI redirects the request to Tegola, which generates MVT tiles</span>
+<span class="sd">    from PostGIS. All geometries are expected to be in EPSG:3857.</span>
+<span class="sd">    The layer parameter should match the PostGIS table name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        layer: Layer/table name in PostGIS (must match ingested table name).</span>
+<span class="sd">        z: Zoom level (0-20+, standard XYZ tile zoom).</span>
+<span class="sd">        x: Tile X coordinate (standard XYZ tile X).</span>
+<span class="sd">        y: Tile Y coordinate (standard XYZ tile Y).</span>
+<span class="sd">        settings: Application settings (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        HTTP redirect response (302/307) to Tegola tile endpoint.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        Request a vector tile:</span>
+<span class="sd">            &gt;&gt;&gt; response = client.get(</span>
+<span class="sd">            ...     &quot;/tiles/vector/cities/10/512/512.pbf&quot;,</span>
+<span class="sd">            ...     allow_redirects=False</span>
+<span class="sd">            ... )</span>
+<span class="sd">            &gt;&gt;&gt; # Returns 302 redirect to:</span>
+<span class="sd">            &gt;&gt;&gt; # http://tegola:8080/maps/cities/tiles/10/512/512.pbf</span>
+
+<span class="sd">        Use in MapLibre GL JS:</span>
+<span class="sd">            &gt;&gt;&gt; map.addSource(&#39;cities&#39;, {</span>
+<span class="sd">            ...     type: &#39;vector&#39;,</span>
+<span class="sd">            ...     tiles: [&#39;http://api/tiles/vector/cities/{z}/{x}/{y}.pbf&#39;]</span>
+<span class="sd">            ... });</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">_build_tegola_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">tegola_base_url</span><span class="p">),</span> <span class="n">layer</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">responses</span><span class="o">.</span><span class="n">RedirectResponse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="raster_tile">
+<a class="viewcode-back" href="../../../app.api.html#app.api.tiles.raster_tile">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/raster/</span><span class="si">{layer_id}</span><span class="s2">/</span><span class="si">{z}</span><span class="s2">/</span><span class="si">{x}</span><span class="s2">/</span><span class="si">{y}</span><span class="s2">.png&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">raster_tile</span><span class="p">(</span>
+    <span class="n">layer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">z</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">repo</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">LayerRepositoryProtocol</span> <span class="o">=</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">_get_repo</span><span class="p">),</span>  <span class="c1"># noqa: B008</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">responses</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate an XYZ raster tile from a Cloud Optimized GeoTIFF.</span>
+
+<span class="sd">    Uses rio-tiler to read the requested tile window from the COG</span>
+<span class="sd">    and render it as a PNG image. The COG is expected to be in EPSG:3857.</span>
+<span class="sd">    Tiles are generated on-demand, leveraging COG&#39;s internal tiling</span>
+<span class="sd">    structure for efficient access.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        layer_id: Unique identifier for the raster layer (from layer metadata).</span>
+<span class="sd">        z: Zoom level (0-20+, standard XYZ tile zoom).</span>
+<span class="sd">        x: Tile X coordinate (standard XYZ tile X).</span>
+<span class="sd">        y: Tile Y coordinate (standard XYZ tile Y).</span>
+<span class="sd">        repo: Layer repository (injected via FastAPI Depends).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        PNG image response with the raster tile. Content-Type is image/png.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        HTTPException: If the layer is not found (404) or is not a raster</span>
+<span class="sd">            layer (provider != &quot;cog&quot; or local_path is None).</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        Request a raster tile:</span>
+<span class="sd">            &gt;&gt;&gt; response = client.get(&quot;/tiles/raster/abc-123/10/512/512.png&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; # Returns PNG image bytes with Content-Type: image/png</span>
+
+<span class="sd">        Use in MapLibre GL JS:</span>
+<span class="sd">            &gt;&gt;&gt; map.addSource(&#39;elevation&#39;, {</span>
+<span class="sd">            ...     type: &#39;raster&#39;,</span>
+<span class="sd">            ...     tiles: [&#39;http://api/tiles/raster/abc-123/{z}/{x}/{y}.png&#39;],</span>
+<span class="sd">            ...     tileSize: 256</span>
+<span class="sd">            ... });</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">layer</span><span class="p">:</span> <span class="n">db_models</span><span class="o">.</span><span class="n">LayerMetadata</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">layer_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">layer</span> <span class="ow">or</span> <span class="n">layer</span><span class="o">.</span><span class="n">provider</span> <span class="o">!=</span> <span class="s2">&quot;cog&quot;</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">layer</span><span class="o">.</span><span class="n">local_path</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">fastapi</span><span class="o">.</span><span class="n">HTTPException</span><span class="p">(</span>
+            <span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span>
+            <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Raster layer not found&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">rio_tiler_io</span><span class="o">.</span><span class="n">COGReader</span><span class="p">(</span>
+        <span class="nb">input</span><span class="o">=</span><span class="n">layer</span><span class="o">.</span><span class="n">local_path</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;nodata&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>  <span class="c1"># type: ignore[arg-type]</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">cog</span><span class="p">:</span>
+        <span class="n">tile</span> <span class="o">=</span> <span class="n">cog</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">responses</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="n">tile</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">img_format</span><span class="o">=</span><span class="s2">&quot;PNG&quot;</span><span class="p">),</span>  <span class="c1"># type: ignore[attr-defined]</span>
+        <span class="n">media_type</span><span class="o">=</span><span class="s2">&quot;image/png&quot;</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Mihovil Rak.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
